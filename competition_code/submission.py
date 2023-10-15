@@ -104,27 +104,32 @@ class RoarCompetitionSolution:
 
         #Calculates the appropriate throttle response based on the speed and angle to the next waypoint
         
-        if (abs(delta_heading) > 0.004 and vehicle_velocity_norm > 25) or (vehicle_velocity_norm > 75 and abs(delta_heading) > 0.0005):
-            throttle = 1
-            brake = 1
-            reverse = 1
-            handBrake = 1
-            print("Large Turn!")
-        elif abs(delta_heading) > 0.001 and vehicle_velocity_norm > 25: # wide turn
-            throttle = max(0, 1 - 3*pow(abs(delta_heading) + vehicle_velocity_norm*0.0001, 6))
-            brake = 0
-            reverse = 0
-            handBrake = 0
+        if ((-330 - waypoint_to_follow.location[0]) ** 2 + (325 - waypoint_to_follow.location[1]) ** 2) <= 100:
+            if (abs(delta_heading) > 0.002 and vehicle_velocity_norm > 20):
+                throttle = 1
+                brake = 1
+                reverse = 1
+                handBrake = 1
+                print("Braking!!!")
+            else:
+                throttle = 1
+                brake = 0
+                reverse = 0
+                handBrake = 0
         else:
-            throttle = 1
-            brake = 0
-            reverse = 0
-            handBrake = 0
+            if (abs(delta_heading) > 0.004 and vehicle_velocity_norm > 30):
+                throttle = 1
+                brake = 1
+                reverse = 1
+                handBrake = 1
+                print("Braking!!!")
+            else:
+                throttle = 1
+                brake = 0
+                reverse = 0
+                handBrake = 0
 
-        gear = 1
-        """gear = max(1, (int)((vehicle_velocity) / 60))
-        if throttle < 0:
-            gear = -1"""
+        gear = max(1, (int)((vehicle_velocity_norm) / 15))
 
         control = {
             "throttle": throttle,
