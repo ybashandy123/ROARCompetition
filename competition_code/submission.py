@@ -87,7 +87,7 @@ class RoarCompetitionSolution:
             waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + 23) % len(self.maneuverable_waypoints)]
         else:
             waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + 12) % len(self.maneuverable_waypoints)]"""
-        waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + int(vehicle_velocity_norm / 2.25) + 2) % len(self.maneuverable_waypoints)]
+        waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + int(vehicle_velocity_norm / 2.75) + 4) % len(self.maneuverable_waypoints)]
 
         # Calculate delta vector towards the target waypoint
         vector_to_waypoint = (waypoint_to_follow.location - vehicle_location)[:2]
@@ -112,12 +112,12 @@ class RoarCompetitionSolution:
                 handBrake = 1
                 print("Braking!!!")
             else:
-                throttle = 1
+                throttle = 0.8
                 brake = 0
                 reverse = 0
                 handBrake = 0
         else:
-            if (abs(delta_heading) > 0.004 and vehicle_velocity_norm > 30):
+            if (abs(delta_heading) > 0.0045 and vehicle_velocity_norm > 30):
                 throttle = 1
                 brake = 1
                 reverse = 1
@@ -129,7 +129,7 @@ class RoarCompetitionSolution:
                 reverse = 0
                 handBrake = 0
 
-        gear = max(1, (int)((vehicle_velocity_norm) / 15))
+        gear = max(1, (int)((vehicle_velocity_norm) / 20))
 
         control = {
             "throttle": throttle,
