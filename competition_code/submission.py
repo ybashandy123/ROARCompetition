@@ -109,25 +109,23 @@ class RoarCompetitionSolution:
 
         # Calculates the appropriate throttle response based on the speed and angle to the next waypoint
         
-        if distance <= 150:
-            if (abs(delta_heading) > 0.0011 and vehicle_velocity_norm > 25):
+        if distance <= 130:
+            if (abs(delta_heading) > 0.001 and vehicle_velocity_norm > 21):
                 throttle = 1
                 brake = 1
                 reverse = 1
                 handBrake = 1
-                print("Braking!!!")
             else:
                 throttle = 1
                 brake = 0
                 reverse = 0
                 handBrake = 0
         else:
-            if (abs(delta_heading) > 0.0115 and vehicle_velocity_norm > 31.5):
+            if (abs(delta_heading) > 0.0125 and vehicle_velocity_norm > 31.5):
                 throttle = 1
                 brake = 1
                 reverse = 1
                 handBrake = 1
-                print("Braking!!!")
             else:
                 throttle = 1
                 brake = 0
