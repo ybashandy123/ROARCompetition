@@ -4,6 +4,7 @@ Please do not change anything else but fill out the to-do sections.
 """
 
 from collections import deque
+import math
 from typing import List, Tuple, Dict, Optional
 import roar_py_interface
 import numpy as np
@@ -102,22 +103,26 @@ class RoarCompetitionSolution:
         ) if vehicle_velocity_norm > 1e-2 else -np.sign(delta_heading)
         steer_control = np.clip(steer_control, -1.0, 1.0)
 
-        #Calculates the appropriate throttle response based on the speed and angle to the next waypoint
+        # Calculates the distance to the final two turns of the track 
+
+        distance = math.sqrt((-325 - waypoint_to_follow.location[0]) ** 2 + (225 - waypoint_to_follow.location[1]) ** 2)
+
+        # Calculates the appropriate throttle response based on the speed and angle to the next waypoint
         
-        if ((-330 - waypoint_to_follow.location[0]) ** 2 + (325 - waypoint_to_follow.location[1]) ** 2) <= 100:
-            if (abs(delta_heading) > 0.002 and vehicle_velocity_norm > 20):
+        if distance <= 150:
+            if (abs(delta_heading) > 0.001 and vehicle_velocity_norm > 25):
                 throttle = 1
                 brake = 1
                 reverse = 1
                 handBrake = 1
                 print("Braking!!!")
             else:
-                throttle = 0.8
+                throttle = 0.75
                 brake = 0
                 reverse = 0
                 handBrake = 0
         else:
-            if (abs(delta_heading) > 0.0045 and vehicle_velocity_norm > 30):
+            if (abs(delta_heading) > 0.011 and vehicle_velocity_norm > 30):
                 throttle = 1
                 brake = 1
                 reverse = 1
