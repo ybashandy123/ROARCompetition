@@ -61,7 +61,7 @@ class RoarCompetitionSolution:
         )
 
         # Creates the section dividers and sets the current zone to 0
-        self.regions = [[740, 720], [100, 220], [-80, -160], [-345, 0], [-290, 400]] * 3 # (-290, 400) is the start of the track
+        self.regions = [[740, 720], [100, 220], [-80, -160], [-345, 0], [-290, 400]] # (-290, 400) is the start of the track
         self.currentRegion = 0
 
     
@@ -109,7 +109,7 @@ class RoarCompetitionSolution:
 
         # Calculates the distance to the final two turns of the track 
 
-        distance = math.sqrt((self.regions[self.currentRegion][0] - waypoint_to_follow.location[0]) ** 2 + (self.regions[self.currentRegion][1] - waypoint_to_follow.location[1]) ** 2)
+        distance = math.sqrt((self.regions[self.currentRegion % len(self.regions)][0] - waypoint_to_follow.location[0]) ** 2 + (self.regions[self.currentRegion % len(self.regions)][1] - waypoint_to_follow.location[1]) ** 2)
 
         # Calculates the appropriate throttle response based on the speed and angle to the next waypoint, as well as it 'sector'
         # FIXME: Add adaptive throttle and braking, as well as better zone management
@@ -122,7 +122,7 @@ class RoarCompetitionSolution:
         if normalizedRegion == 4:
             # Adjust these values to get braking performance needed
             if (abs(delta_heading) > 0.00005 and vehicle_velocity_norm > 21):
-                throttle = 0
+                throttle = 1
                 brake = 1
                 reverse = 1
                 handBrake = 1
@@ -143,13 +143,13 @@ class RoarCompetitionSolution:
                 reverse = 0
                 handBrake = 0
         else:
-            if (abs(delta_heading) > 0.012 and vehicle_velocity_norm > 40):
+            if (abs(delta_heading) > 0.012 and vehicle_velocity_norm > 45):
                 throttle = 1
                 brake = 1
                 reverse = 1
                 handBrake = 1
             else:
-                throttle = 0.75 + (40 - vehicle_velocity_norm) / 20
+                throttle = 0.75 + (1 / delta_heading - vehicle_velocity_norm) / 20
                 brake = 0
                 reverse = 0
                 handBrake = 0
