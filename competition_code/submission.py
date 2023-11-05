@@ -118,10 +118,9 @@ class RoarCompetitionSolution:
             self.currentRegion += 1
 
         normalizedRegion = self.currentRegion % len(self.regions)
-            
-        if normalizedRegion == 4:
-            # Adjust these values to get braking performance needed
-            if (abs(delta_heading) > 0.00005 and vehicle_velocity_norm > 21):
+        
+        if normalizedRegion < 3:
+            if (abs(delta_heading) > 0.0115 and vehicle_velocity_norm > 30):
                 throttle = 1
                 brake = 1
                 reverse = 1
@@ -131,8 +130,9 @@ class RoarCompetitionSolution:
                 brake = 0
                 reverse = 0
                 handBrake = 0
-        elif normalizedRegion < 3:
-            if (abs(delta_heading) > 0.0125 and vehicle_velocity_norm > 31.5):
+        elif normalizedRegion == 4:
+            # Adjust these values to get braking performance needed
+            if (abs(delta_heading) > 0.000075 and vehicle_velocity_norm > 21):
                 throttle = 1
                 brake = 1
                 reverse = 1
@@ -143,7 +143,7 @@ class RoarCompetitionSolution:
                 reverse = 0
                 handBrake = 0
         else:
-            if (abs(delta_heading) > 0.012 and vehicle_velocity_norm > 45):
+            if (abs(delta_heading) > 0.0075 and vehicle_velocity_norm > 45):
                 throttle = 1
                 brake = 1
                 reverse = 1
