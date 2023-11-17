@@ -143,7 +143,7 @@ class RoarCompetitionSolution:
                 reverse = 0
                 handBrake = 0
         else:
-            if (abs(delta_heading) > 0.0075 and vehicle_velocity_norm > 45):
+            if (abs(delta_heading) > 0.0075 and vehicle_velocity_norm > 50):
                 throttle = 1
                 brake = 1
                 reverse = 1
