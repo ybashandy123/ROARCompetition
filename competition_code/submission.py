@@ -3,6 +3,8 @@ Competition instructions:
 Please do not change anything else but fill out the to-do sections.
 """
 
+from collections import deque
+import math
 from typing import List, Tuple, Dict, Optional
 import roar_py_interface
 import numpy as np
@@ -11,12 +13,13 @@ def normalize_rad(rad : float):
     return (rad + np.pi) % (2 * np.pi) - np.pi
 
 def filter_waypoints(location : np.ndarray, current_idx: int, waypoints : List[roar_py_interface.RoarPyWaypoint]) -> int:
+    #Takes in the current car location, the index of the waypoints list, and the waypoint list to get the closest waypoint
     def dist_to_waypoint(waypoint : roar_py_interface.RoarPyWaypoint):
         return np.linalg.norm(
             location[:2] - waypoint.location[:2]
         )
     for i in range(current_idx, len(waypoints) + current_idx):
-        if dist_to_waypoint(waypoints[i%len(waypoints)]) < 3:
+        if dist_to_waypoint(waypoints[i%len(waypoints)]) < 2:
             return i % len(waypoints)
     return current_idx
 
@@ -54,10 +57,14 @@ class RoarCompetitionSolution:
         self.current_waypoint_idx = filter_waypoints(
             vehicle_location,
             self.current_waypoint_idx,
-            self.maneuverable_waypoints
+            self.maneuverable_waypoints, 
         )
 
+        # Creates the section dividers and sets the current zone to 0
+        self.regions = [[740, 720], [100, 220], [-80, -160], [-345, 0], [-290, 400]] # (-290, 400) is the start of the track
+        self.currentRegion = 0
 
+    
     async def step(
         self
     ) -> None:
@@ -78,10 +85,14 @@ class RoarCompetitionSolution:
         self.current_waypoint_idx = filter_waypoints(
             vehicle_location,
             self.current_waypoint_idx,
-            self.maneuverable_waypoints
+            self.maneuverable_waypoints, 
         )
-         # We use the 3rd waypoint ahead of the current waypoint as the target waypoint
-        waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + 3) % len(self.maneuverable_waypoints)]
+        # Generates the waypoint to follow based on the vehicle's speed
+        """if vehicle_velocity_norm > 30:
+            waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + 23) % len(self.maneuverable_waypoints)]
+        else:
+            waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + 12) % len(self.maneuverable_waypoints)]"""
+        waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + int(vehicle_velocity_norm / 2.75) + 4) % len(self.maneuverable_waypoints)]
 
         # Calculate delta vector towards the target waypoint
         vector_to_waypoint = (waypoint_to_follow.location - vehicle_location)[:2]
@@ -96,16 +107,65 @@ class RoarCompetitionSolution:
         ) if vehicle_velocity_norm > 1e-2 else -np.sign(delta_heading)
         steer_control = np.clip(steer_control, -1.0, 1.0)
 
-        # Proportional controller to control the vehicle's speed towards 40 m/s
-        throttle_control = 0.05 * (20 - vehicle_velocity_norm)
+        # Calculates the distance to the final two turns of the track 
+
+        distance = math.sqrt((self.regions[self.currentRegion % len(self.regions)][0] - waypoint_to_follow.location[0]) ** 2 + (self.regions[self.currentRegion % len(self.regions)][1] - waypoint_to_follow.location[1]) ** 2)
+
+        # Calculates the appropriate throttle response based on the speed and angle to the next waypoint, as well as it 'sector'
+        # FIXME: Add adaptive throttle and braking, as well as better zone management
+        
+        if distance < 10:
+            self.currentRegion += 1
+
+        normalizedRegion = self.currentRegion % len(self.regions)
+        
+        if normalizedRegion < 3:
+            if (abs(delta_heading) > 0.0115 and vehicle_velocity_norm > 30):
+                throttle = 1
+                brake = 1
+                reverse = 1
+                handBrake = 1
+            else:
+                throttle = 1
+                brake = 0
+                reverse = 0
+                handBrake = 0
+        elif normalizedRegion == 4:
+            # Adjust these values to get braking performance needed
+            if (abs(delta_heading) > 0.000075 and vehicle_velocity_norm > 21):
+                throttle = 1
+                brake = 1
+                reverse = 1
+                handBrake = 1
+            else:
+                throttle = 1
+                brake = 0
+                reverse = 0
+                handBrake = 0
+        else:
+            if (abs(delta_heading) > 0.0075 and vehicle_velocity_norm > 45):
+                throttle = 1
+                brake = 1
+                reverse = 1
+                handBrake = 1
+            else:
+                throttle = 0.75 + (1 / delta_heading - vehicle_velocity_norm) / 20
+                brake = 0
+                reverse = 0
+                handBrake = 0
+
+        gear = max(1, (int)((vehicle_velocity_norm) / 20))
 
         control = {
-            "throttle": np.clip(throttle_control, 0.0, 1.0),
+            "throttle": throttle,
             "steer": steer_control,
-            "brake": np.clip(-throttle_control, 0.0, 1.0),
-            "hand_brake": 0.0,
-            "reverse": 0,
-            "target_gear": 0
+            "brake": brake,
+            "hand_brake": handBrake,
+            "reverse": reverse,
+            "target_gear": gear
         }
+
+        print(f"Current Speed: {vehicle_velocity_norm}\nBrake Value: {brake}\nCurrent region: {normalizedRegion} \nDelta Heading: {delta_heading}")
+
         await self.vehicle.apply_action(control)
         return control
