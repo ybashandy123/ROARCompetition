@@ -61,6 +61,11 @@ class RoarCompetitionSolution:
         )
 
         # Creates the section dividers and sets the current zone to 0
+        # Zone 0: Start - after turn 4
+        # Zone 1: Turn 5 - Before turn 6
+        # Zone 2: Turn6 - Turn 7
+        # Zone 3: After turn 7 - Before turn 9 (Long 180 degree turn)
+        # Zone 4: Turns 9 and 10 (Sharp S-turn after long straightaway)
         self.regions = [[740, 720], [100, 220], [-80, -160], [-345, 0], [-290, 400]] # (-290, 400) is the start of the track
         self.currentRegion = 0
 
@@ -88,10 +93,6 @@ class RoarCompetitionSolution:
             self.maneuverable_waypoints, 
         )
         # Generates the waypoint to follow based on the vehicle's speed
-        """if vehicle_velocity_norm > 30:
-            waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + 23) % len(self.maneuverable_waypoints)]
-        else:
-            waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + 12) % len(self.maneuverable_waypoints)]"""
         waypoint_to_follow = self.maneuverable_waypoints[(self.current_waypoint_idx + int(vehicle_velocity_norm / 2.75) + 4) % len(self.maneuverable_waypoints)]
 
         # Calculate delta vector towards the target waypoint
@@ -120,19 +121,19 @@ class RoarCompetitionSolution:
         normalizedRegion = self.currentRegion % len(self.regions)
         
         if normalizedRegion < 3:
-            if (abs(delta_heading) > 0.0115 and vehicle_velocity_norm > 30):
+            if (abs(delta_heading) > 0.01175 and vehicle_velocity_norm > 36.5):
                 throttle = 1
                 brake = 1
                 reverse = 1
                 handBrake = 1
             else:
-                throttle = 1
+                throttle = 0.75 + (0.7 / delta_heading - vehicle_velocity_norm) / 20
                 brake = 0
                 reverse = 0
                 handBrake = 0
         elif normalizedRegion == 4:
             # Adjust these values to get braking performance needed
-            if (abs(delta_heading) > 0.000075 and vehicle_velocity_norm > 21):
+            if (abs(delta_heading) > 0.00008 and vehicle_velocity_norm > 22.5):
                 throttle = 1
                 brake = 1
                 reverse = 1
@@ -143,7 +144,7 @@ class RoarCompetitionSolution:
                 reverse = 0
                 handBrake = 0
         else:
-            if (abs(delta_heading) > 0.0075 and vehicle_velocity_norm > 50):
+            if (abs(delta_heading) > 0.007 and vehicle_velocity_norm > 50):
                 throttle = 1
                 brake = 1
                 reverse = 1
@@ -165,7 +166,7 @@ class RoarCompetitionSolution:
             "target_gear": gear
         }
 
-        print(f"Current Speed: {vehicle_velocity_norm}\nBrake Value: {brake}\nCurrent region: {normalizedRegion} \nDelta Heading: {delta_heading}")
+        print(f"Current Speed: {vehicle_velocity_norm}\nBrake Value: {brake}\nCurrent region: {normalizedRegion}\nLap Number: {self.currentRegion // len(self.regions) + 1}\nDelta Heading: {delta_heading}")
 
         await self.vehicle.apply_action(control)
         return control
