@@ -115,8 +115,8 @@ class RoarCompetitionSolution:
         nextRegionDistance = math.sqrt((self.regions[self.currentRegion % len(self.regions)][0] - waypointToFollow.location[0]) ** 2 + (self.regions[self.currentRegion % len(self.regions)][1] - waypointToFollow.location[1]) ** 2)
         nextBrakeDistance = math.sqrt((self.brakeLocations[self.currentBrakeLocation % len(self.brakeLocations)][0] - waypointToFollow.location[0]) ** 2 + (self.brakeLocations[self.currentBrakeLocation % len(self.brakeLocations)][1] - waypointToFollow.location[1]) ** 2)
 
-        # Calculates the appropriate throttle response based on the speed and angle to the next waypoint, as well as it 'sector'
-        # FIXME: Add adaptive throttle and braking, as well as better zone management
+        # Calculates the appropriate throttle response based on the speed and angle to the next waypoint and the 'sector' the car is in
+        # TODO: Add better zone management and tune for zones 1 and 2
         
         if nextRegionDistance < 15:
             self.currentRegion += 1
@@ -130,7 +130,8 @@ class RoarCompetitionSolution:
             handBrake = 1
             self.currentBrakeLocation += 1
         elif normalizedRegion < 3:
-            if (abs(deltaHeading) > 0.01175 and vehicleVelocityNorm > 37.5):
+            # Handles zones 0, 1, and 2
+            if (abs(deltaHeading) > 0.012 and vehicleVelocityNorm > 37.5):
                 throttle = 1
                 brake = 1
                 reverse = 1
@@ -140,8 +141,20 @@ class RoarCompetitionSolution:
                 brake = 0
                 reverse = 0
                 handBrake = 0
+        elif normalizedRegion == 3:
+            # Handles zone 3
+            if (abs(deltaHeading) > 0.007 and vehicleVelocityNorm > 50):
+                throttle = 1
+                brake = 1
+                reverse = 1
+                handBrake = 1
+            else:
+                throttle = 0.75 + (1 / deltaHeading - vehicleVelocityNorm) / 20
+                brake = 0
+                reverse = 0
+                handBrake = 0
         elif normalizedRegion == 4:
-            # Adjust these values to get braking performance needed
+            # Handles zone 4
             if (abs(deltaHeading) > 0.00008 and vehicleVelocityNorm > 22.5):
                 throttle = 1
                 brake = 1
@@ -153,6 +166,7 @@ class RoarCompetitionSolution:
                 reverse = 0
                 handBrake = 0
         else:
+            # Handles any exceptions
             if (abs(deltaHeading) > 0.007 and vehicleVelocityNorm > 50):
                 throttle = 1
                 brake = 1
