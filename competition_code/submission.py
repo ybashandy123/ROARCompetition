@@ -66,9 +66,9 @@ class RoarCompetitionSolution:
         # Zone 2: Turn6 - Turn 7
         # Zone 3: After turn 7 - Before turn 9 (Long 180 degree turn)
         # Zone 4: Turns 9 and 10 (Sharp S-turn after long straightaway)
-        self.regions = [[740, 720], [100, 220], [-80, -160], [-345, 0], [-290, 400]] # (-290, 400) is the start of the track
+        self.regions = [[740, 720], [90, 215], [-80, -160], [-345, 0], [-290, 400]] # (-290, 400) is the start of the track
         self.currentRegion = 0
-        self.brakeLocations = [[-125, -950]]
+        self.brakeLocations = [[75, 210], [-125, -950], [-340, 210]]
         self.currentBrakeLocation = 0
 
     
@@ -95,7 +95,7 @@ class RoarCompetitionSolution:
             self.maneuverableWaypoints, 
         )
         # Generates the waypoint to follow based on the vehicle's speed
-        waypointToFollow = self.maneuverableWaypoints[(self.currentWaypointIdx + int(vehicleVelocityNorm / 2.75) + 4) % len(self.maneuverableWaypoints)]
+        waypointToFollow = self.maneuverableWaypoints[(self.currentWaypointIdx + int(vehicleVelocityNorm / 2.75) + 5) % len(self.maneuverableWaypoints)]
 
         # Calculate delta vector towards the target waypoint
         vectorToWaypoint = (waypointToFollow.location - vehicleLocation)[:2]
@@ -124,59 +124,36 @@ class RoarCompetitionSolution:
         normalizedRegion = self.currentRegion % len(self.regions)
         
         if nextBrakeDistance < 10: 
-            throttle = 1
-            brake = 1
-            reverse = 1
-            handBrake = 1
+            throttle, brake, reverse, handBrake = 1, 1, 1, 1
             self.currentBrakeLocation += 1
-        elif normalizedRegion < 3:
-            # Handles zones 0, 1, and 2
-            if (abs(deltaHeading) > 0.012 and vehicleVelocityNorm > 37.5):
-                throttle = 1
-                brake = 1
-                reverse = 1
-                handBrake = 1
+        elif normalizedRegion < 2:
+            # Handles zones 0 and 1
+            if (abs(deltaHeading) > 0.017 and vehicleVelocityNorm > 37.5):
+                throttle, brake, reverse, handBrake = 1, 1, 1, 1
             else:
                 throttle = 0.75 + (0.7 / deltaHeading - vehicleVelocityNorm) / 20
-                brake = 0
-                reverse = 0
-                handBrake = 0
+                brake, reverse, handBrake = 0, 0, 0
+        elif normalizedRegion == 2:
+            # Handles zone 2
+            if (abs(deltaHeading) > 0.001 and vehicleVelocityNorm > 37.5):
+                throttle, brake, reverse, handBrake = 1, 1, 1, 1
+            else:
+                throttle = 0.75 + (0.7 / deltaHeading - vehicleVelocityNorm) / 20
+                brake, reverse, handBrake = 0, 0, 0
         elif normalizedRegion == 3:
             # Handles zone 3
             if (abs(deltaHeading) > 0.007 and vehicleVelocityNorm > 50):
-                throttle = 1
-                brake = 1
-                reverse = 1
-                handBrake = 1
+                throttle, brake, reverse, handBrake = 1, 1, 1, 1
             else:
                 throttle = 0.75 + (1 / deltaHeading - vehicleVelocityNorm) / 20
-                brake = 0
-                reverse = 0
-                handBrake = 0
-        elif normalizedRegion == 4:
-            # Handles zone 4
-            if (abs(deltaHeading) > 0.00008 and vehicleVelocityNorm > 22.5):
-                throttle = 1
-                brake = 1
-                reverse = 1
-                handBrake = 1
-            else:
-                throttle = 1
-                brake = 0
-                reverse = 0
-                handBrake = 0
+                brake, reverse, handBrake = 0, 0, 0
         else:
-            # Handles any exceptions
-            if (abs(deltaHeading) > 0.007 and vehicleVelocityNorm > 50):
-                throttle = 1
-                brake = 1
-                reverse = 1
-                handBrake = 1
+            # Handles zone 4
+            if (abs(deltaHeading) > 0.0001 and vehicleVelocityNorm > 20):
+                throttle, brake, reverse, handBrake = 1, 1, 1, 1
             else:
-                throttle = 0.75 + (1 / deltaHeading - vehicleVelocityNorm) / 20
-                brake = 0
-                reverse = 0
-                handBrake = 0
+                throttle = 1
+                brake, reverse, handBrake = 0, 0, 0
 
         gear = max(1, (int)(vehicleVelocityNorm / 20))
 
@@ -189,7 +166,8 @@ class RoarCompetitionSolution:
             "target_gear": gear
         }
 
-        print(f"Current Speed: {vehicleVelocityNorm}\nBrake Value: {brake}\nDistance to next brake position: {nextBrakeDistance}\nCurrent region: {normalizedRegion}\nLap Number: {self.currentRegion // len(self.regions) + 1}\nDelta Heading: {deltaHeading}")
+        print(f"Current Speed: {vehicleVelocityNorm}\nBrake Value: {brake}")
+        print(f"Current region: {normalizedRegion}\nLap Number: {self.currentRegion // len(self.regions) + 1}\nDelta Heading: {deltaHeading}")
 
         await self.vehicle.apply_action(control)
         return control
