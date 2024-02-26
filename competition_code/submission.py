@@ -55,8 +55,9 @@ class RoarCompetitionSolution:
         self.current_section = -1
 
     async def initialize(self) -> None:
-        self.maneuverable_waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(np.load("competition_code\\waypoints.npz"))
-        num_sections = 11
+        # FIXME check to make sure that forcing your own waypoints here is actually legal. If not, move it to somewhere that is legal
+        self.maneuverable_waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(np.load("competition_code\\waypoints.npz")) 
+        num_sections = 10
         indexes_per_section = len(self.maneuverable_waypoints) // num_sections
         self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
         print(f"1 lap length: {len(self.maneuverable_waypoints)}")
@@ -114,7 +115,7 @@ class RoarCompetitionSolution:
 
         # Proportional controller to steer the vehicle
         steer_control = self.lat_pid_controller.run(
-            vehicle_location, vehicle_rotation, current_speed_kmh, waypoint_to_follow)
+            vehicle_location, vehicle_rotation, current_speed_kmh, waypoint_to_follow, self.current_section)
 
         # Proportional controller to control the vehicle's speed
         waypoints_for_throttle = \
@@ -131,7 +132,7 @@ class RoarCompetitionSolution:
             "target_gear": gear
         }
 
-        currentWaypoint = self.maneuverable_waypoints[self.current_waypoint_idx].location
+        # currentWaypoint = self.maneuverable_waypoints[self.current_waypoint_idx].location
 
         # print(f"Target waypoint: {currentWaypoint}\nCurrent location: {vehicle_location}\nDistance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2)}")
 
@@ -147,6 +148,9 @@ class RoarCompetitionSolution:
         return control
 
     def get_lookahead_value(self, speed):
+        """
+        Returns the number of waypoints to look ahead based on the speed the car is currently going
+        """
         speed_to_lookahead_dict = {
             70: 11,
             90: 12,
@@ -165,6 +169,9 @@ class RoarCompetitionSolution:
         return num_waypoints
 
     def get_lookahead_index(self, speed):
+        """
+        Adds the lookahead waypoint to the current waypoint and normalizes it so that the value does not go out of bounds
+        """
         num_waypoints = self.get_lookahead_value(speed)
         # print("speed " + str(speed) 
         #       + " cur_ind " + str(self.current_waypoint_idx) 
@@ -173,6 +180,9 @@ class RoarCompetitionSolution:
         return (self.current_waypoint_idx + num_waypoints) % len(self.maneuverable_waypoints)
     
     def get_lateral_pid_config(self):
+        """
+        Returns the PID values for the lateral (steering) PID
+        """
         config = {
         # "60": {
         #         "Kp": 0.8,
@@ -206,52 +216,52 @@ class RoarCompetitionSolution:
                 "Ki": 0.0
         },
         "90": {
-                "Kp": 0.63,
+                "Kp": 0.58,
                 "Kd": 0.09,
                 "Ki": 0.09
         },
         "100": {
-                "Kp": 0.6,
-                "Kd": 0.1,
-                "Ki": 0.1
-        },
-        "120": {
                 "Kp": 0.52,
                 "Kd": 0.1,
                 "Ki": 0.1
         },
+        "120": {
+                "Kp": 0.47,
+                "Kd": 0.1,
+                "Ki": 0.1
+        },
         "130": {
-                "Kp": 0.51,
+                "Kp": 0.43,
                 "Kd": 0.1,
                 "Ki": 0.09
         },
         "140": {
-                "Kp": 0.45,
+                "Kp": 0.38,
                 "Kd": 0.1,
                 "Ki": 0.09
         },
         "160": {
-                "Kp": 0.4,
+                "Kp": 0.33,
                 "Kd": 0.12,
                 "Ki": 0.06
         },
         "180": {
-                "Kp": 0.28,
+                "Kp": 0.21,
                 "Kd": 0.1,
                 "Ki": 0.05
         },
         "200": {
-                "Kp": 0.28,
+                "Kp": 0.18,
                 "Kd": 0.1,
                 "Ki": 0.04
         },
         "230": {
-                "Kp": 0.26,
+                "Kp": 0.15,
                 "Kd": 0.1,
                 "Ki": 0.05
         },
         "300": {
-                "Kp": 0.205,
+                "Kp": 0.1,
                 "Kd": 0.008,
                 "Ki": 0.017
         }
@@ -260,7 +270,10 @@ class RoarCompetitionSolution:
 
     # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py
     def next_waypoint_smooth(self, current_speed: float):
-        if current_speed > 70 and current_speed < 300 and False:
+        """
+        If the speed is higher than 70, 'smooth out' the path that the car will take
+        """
+        if current_speed > 70 and current_speed < 300:
             target_waypoint = self.average_point(current_speed)
         else:
             new_waypoint_index = self.get_lookahead_index(current_speed)
@@ -268,15 +281,18 @@ class RoarCompetitionSolution:
         return target_waypoint
 
     def average_point(self, current_speed):
+        """
+        Returns a new averaged waypoint based on the location of a number of other waypoints
+        """
         next_waypoint_index = self.get_lookahead_index(current_speed)
         lookahead_value = self.get_lookahead_value(current_speed)
         num_points = lookahead_value * 2
         if self.current_section in [0]:
             num_points = lookahead_value
-        if self.current_section in [6, 7, 8]:
-            num_points = lookahead_value // 3
-        if self.current_section in [9]:
-            num_points = lookahead_value // 1
+        if self.current_section in [6, 7]:
+            num_points = lookahead_value // 2
+        if self.current_section in [8, 9]:
+            num_points = lookahead_value // 2
 
         start_index_for_avg = (next_waypoint_index - (num_points // 2)) % len(self.maneuverable_waypoints)
 
@@ -318,7 +334,7 @@ class LatPIDController():
         self._error_buffer = deque(maxlen=10)
         self._dt = dt
 
-    def run(self, vehicle_location, vehicle_rotation, current_speed, next_waypoint) -> float:
+    def run(self, vehicle_location, vehicle_rotation, current_speed, next_waypoint, sector) -> float:
         """
         Calculates a vector that represent where you are going.
         Args:
@@ -362,7 +378,7 @@ class LatPIDController():
             _de = 0.0
             _ie = 0.0
 
-        k_p, k_d, k_i = self.find_k_values(current_speed=current_speed, config=self.config)
+        k_p, k_d, k_i = self.find_k_values(current_speed=current_speed, config=self.config, sector=sector)
 
         lat_control = float(
             np.clip((k_p * error) + (k_d * _de) + (k_i * _ie), self.steering_boundary[0], self.steering_boundary[1])
@@ -379,13 +395,25 @@ class LatPIDController():
 
         return lat_control
     
-    def find_k_values(self, current_speed: float, config: dict) -> np.array:
+    def find_k_values(self, current_speed: float, config: dict, sector: int) -> np.array:
+        """
+        Returns the PID lateral PID values based on the current speed and sector
+        """
+
         k_p, k_d, k_i = 1, 0, 0
         for speed_upper_bound, kvalues in config.items():
             speed_upper_bound = float(speed_upper_bound)
             if current_speed < speed_upper_bound:
                 k_p, k_d, k_i = kvalues["Kp"], kvalues["Kd"], kvalues["Ki"]
                 break
+        if (sector in [5]):
+            k_p = 0.4
+            k_d / 1.5
+        elif (sector in [6, 7]):
+            k_p = 0.95
+            # k_d * 2
+        elif (sector in [8, 9]):
+            k_p = 0.575
         return np.array([k_p, k_d, k_i])
 
     
@@ -478,9 +506,9 @@ class ThrottleController():
                          (0 if len(speed_data) < 4 else speed_data[3].recommended_speed_now), 
                          current_speed)
 
-        t, b = self.speed_data_to_throttle_and_brake(update)
-        self.dprint("--- throt " + str(t) + " brake " + str(b) + "---")
-        return t, b
+        throttle, brake = self.speed_data_to_throttle_and_brake(update)
+        self.dprint("--- throt " + str(throttle) + " brake " + str(brake) + "---")
+        return throttle, brake
 
     def speed_data_to_throttle_and_brake(self, speed_data: SpeedData):
         percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
