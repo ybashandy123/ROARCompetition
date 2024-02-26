@@ -407,13 +407,13 @@ class LatPIDController():
                 k_p, k_d, k_i = kvalues["Kp"], kvalues["Kd"], kvalues["Ki"]
                 break
         if (sector in [5]):
-            k_p = 0.4
+            k_p = 0.425
             k_d / 1.5
         elif (sector in [6, 7]):
             k_p = 0.95
             # k_d * 2
         elif (sector in [8, 9]):
-            k_p = 0.575
+            k_p = 0.557
         return np.array([k_p, k_d, k_i])
 
     
@@ -599,7 +599,7 @@ class ThrottleController():
             return speed_data[0]
     
     def get_throttle_to_maintain_speed(self, current_speed: float):
-        throttle = 0.6 + current_speed/1000
+        throttle = 0.65 + current_speed / 500
         return throttle
 
     def speed_for_turn(self, distance: float, target_speed: float, current_speed: float):
