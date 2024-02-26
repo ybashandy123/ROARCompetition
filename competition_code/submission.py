@@ -55,7 +55,8 @@ class RoarCompetitionSolution:
         self.current_section = -1
 
     async def initialize(self) -> None:
-        num_sections = 10
+        self.maneuverable_waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(np.load("competition_code\\waypoints.npz"))
+        num_sections = 11
         indexes_per_section = len(self.maneuverable_waypoints) // num_sections
         self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
         print(f"1 lap length: {len(self.maneuverable_waypoints)}")
@@ -106,7 +107,7 @@ class RoarCompetitionSolution:
                 elapsed_ticks = self.num_ticks - self.section_start_ticks
                 self.section_start_ticks = self.num_ticks
                 self.current_section = i
-                print(f"Section {i}: {elapsed_ticks}")
+                print(f"Section {i}: {elapsed_ticks} ticks")
 
         new_waypoint_index = self.get_lookahead_index(current_speed_kmh)
         waypoint_to_follow = self.next_waypoint_smooth(current_speed_kmh)
@@ -130,6 +131,10 @@ class RoarCompetitionSolution:
             "target_gear": gear
         }
 
+        currentWaypoint = self.maneuverable_waypoints[self.current_waypoint_idx].location
+
+        # print(f"Target waypoint: {currentWaypoint}\nCurrent location: {vehicle_location}\nDistance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2)}")
+
         # print("--- " + str(throttle) + " " + str(brake) 
         #             + " steer " + str(steer_control)
         #             + " loc: " + str(vehicle_location)
@@ -143,7 +148,7 @@ class RoarCompetitionSolution:
 
     def get_lookahead_value(self, speed):
         speed_to_lookahead_dict = {
-            70: 12,
+            70: 11,
             90: 12,
             110: 13,
             130: 14,
@@ -168,21 +173,37 @@ class RoarCompetitionSolution:
         return (self.current_waypoint_idx + num_waypoints) % len(self.maneuverable_waypoints)
     
     def get_lateral_pid_config(self):
-        conf = {
+        config = {
+        # "60": {
+        #         "Kp": 0.8,
+        #         "Kd": 0.05,
+        #         "Ki": 0.05
+        # },
+        # "70": {
+        #         "Kp": 0.7,
+        #         "Kd": 0.07,
+        #         "Ki": 0.07
+        # },
+        # "80": {
+        #         "Kp": 0.66,
+        #         "Kd": 0.08,
+        #         "Ki": 0.08
+        # },
+        # FIXME first three speed PID values are just to fix waypoint navigation issues, as the waypoint creator starts the car slightly forward and messes with navigation
         "60": {
-                "Kp": 0.8,
-                "Kd": 0.05,
-                "Ki": 0.05
+                "Kp": 0.0,
+                "Kd": 0.0,
+                "Ki": 0.0
         },
         "70": {
-                "Kp": 0.7,
-                "Kd": 0.07,
-                "Ki": 0.07
+                "Kp": 0.0,
+                "Kd": 0.0,
+                "Ki": 0.0
         },
         "80": {
-                "Kp": 0.66,
-                "Kd": 0.08,
-                "Ki": 0.08
+                "Kp": 0.0,
+                "Kd": 0.0,
+                "Ki": 0.0
         },
         "90": {
                 "Kp": 0.63,
@@ -211,22 +232,22 @@ class RoarCompetitionSolution:
         },
         "160": {
                 "Kp": 0.4,
-                "Kd": 0.05,
+                "Kd": 0.12,
                 "Ki": 0.06
         },
         "180": {
                 "Kp": 0.28,
-                "Kd": 0.02,
+                "Kd": 0.1,
                 "Ki": 0.05
         },
         "200": {
                 "Kp": 0.28,
-                "Kd": 0.03,
+                "Kd": 0.1,
                 "Ki": 0.04
         },
         "230": {
                 "Kp": 0.26,
-                "Kd": 0.04,
+                "Kd": 0.1,
                 "Ki": 0.05
         },
         "300": {
@@ -235,11 +256,11 @@ class RoarCompetitionSolution:
                 "Ki": 0.017
         }
         }
-        return conf
+        return config
 
     # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py
     def next_waypoint_smooth(self, current_speed: float):
-        if current_speed > 70 and current_speed < 300:
+        if current_speed > 70 and current_speed < 300 and False:
             target_waypoint = self.average_point(current_speed)
         else:
             new_waypoint_index = self.get_lookahead_index(current_speed)
@@ -252,8 +273,11 @@ class RoarCompetitionSolution:
         num_points = lookahead_value * 2
         if self.current_section in [0]:
             num_points = lookahead_value
-        if self.current_section in [6, 7, 8, 9]:
-            num_points = lookahead_value // 2
+        if self.current_section in [6, 7, 8]:
+            num_points = lookahead_value // 3
+        if self.current_section in [9]:
+            num_points = lookahead_value // 1
+
         start_index_for_avg = (next_waypoint_index - (num_points // 2)) % len(self.maneuverable_waypoints)
 
         next_waypoint = self.maneuverable_waypoints[next_waypoint_index]
@@ -404,7 +428,7 @@ class ThrottleController():
     def run(self, waypoints, current_location, current_speed, current_section) -> (float, float, int):
         self.tick_counter += 1
         throttle, brake = self.get_throttle_and_brake(current_location, current_speed, current_section, waypoints)
-        gear = max(1, (int)(current_speed / 60))
+        gear = max(1, (int)(current_speed / 55))
         if throttle == -1:
             gear = -1
 
@@ -422,10 +446,10 @@ class ThrottleController():
 
     def get_throttle_and_brake(self, current_location, current_speed, current_section, waypoints):
 
-        wp = self.get_next_interesting_waypoints(current_location, waypoints)
-        r1 = self.get_radius(wp[self.close_index : self.close_index + 3])
-        r2 = self.get_radius(wp[self.mid_index : self.mid_index + 3])
-        r3 = self.get_radius(wp[self.far_index : self.far_index + 3])
+        nextWaypoint = self.get_next_interesting_waypoints(current_location, waypoints)
+        r1 = self.get_radius(nextWaypoint[self.close_index : self.close_index + 3])
+        r2 = self.get_radius(nextWaypoint[self.mid_index : self.mid_index + 3])
+        r3 = self.get_radius(nextWaypoint[self.far_index : self.far_index + 3])
 
         target_speed1 = self.get_target_speed(r1, current_section)
         target_speed2 = self.get_target_speed(r2, current_section)
@@ -441,7 +465,7 @@ class ThrottleController():
 
         if current_speed > 100:
             # at high speed use larger spacing between points to look further ahead and detect wide turns.
-            r4 = self.get_radius([wp[self.close_index], wp[self.close_index+3], wp[self.close_index+6]])
+            r4 = self.get_radius([nextWaypoint[self.close_index], nextWaypoint[self.close_index+3], nextWaypoint[self.close_index+6]])
             target_speed4 = self.get_target_speed(r4, current_section)
             speed_data.append(self.speed_for_turn(close_distance, target_speed4, current_speed))
 
@@ -481,7 +505,7 @@ class ThrottleController():
                     self.dprint("tb: tick" + str(self.tick_counter) + " brake: counter" + str(self.brake_ticks))
                     return -1, 1
                 # if speed is not decreasing fast, hit the brake.
-                if self.brake_ticks <= 0 and not self.speed_dropping_fast(percent_change_per_tick, speed_data.current_speed):
+                if self.brake_ticks <= 0 and not self.isSpeedDroppingFast(percent_change_per_tick, speed_data.current_speed):
                     # start braking, and set for how many ticks to brake
                     self.brake_ticks = math.floor((percent_of_max - 1) / percent_change_per_tick)
                     # TODO: try 
@@ -494,7 +518,7 @@ class ThrottleController():
                     self.brake_ticks = 0 # done slowing down. clear brake_ticks
                     return 1, 0
             else:
-                if self.speed_dropping_fast(percent_change_per_tick, speed_data.current_speed):
+                if self.isSpeedDroppingFast(percent_change_per_tick, speed_data.current_speed):
                     # speed is already dropping fast, ok to throttle because the effect of throttle is delayed
                     self.dprint("tb: tick" + str(self.tick_counter) + " brake: throttle early2: sp_ch=" + str(percent_speed_change))
                     self.brake_ticks = 0 # done slowing down. clear brake_ticks
@@ -509,7 +533,7 @@ class ThrottleController():
         else:
             self.brake_ticks = 0 # done slowing down. clear brake_ticks
             # Consider speeding up
-            if self.speed_dropping_fast(percent_change_per_tick, speed_data.current_speed):
+            if self.isSpeedDroppingFast(percent_change_per_tick, speed_data.current_speed):
                 # speed is dropping fast, ok to throttle because the effect of throttle is delayed
                 self.dprint("tb: tick" + str(self.tick_counter) + " throttle: full speed drop: sp_ch=" + str(percent_speed_change))
                 return 1, 0
@@ -525,12 +549,15 @@ class ThrottleController():
                 return throttle_to_maintain, 0
 
     # used to detect when speed is dropping due to brakes applied earlier. speed delta has a steep negative slope.
-    def speed_dropping_fast(self, percent_change_per_tick: float, current_speed):
+    def isSpeedDroppingFast(self, percent_change_per_tick: float, current_speed):
+        """Detects if the speed of the car is dropping quickly.
+        Returns true if the speed is dropping fast"""
         percent_speed_change = (current_speed - self.previous_speed) / (self.previous_speed + 0.0001) # avoid division by zero
         return percent_speed_change < (-percent_change_per_tick / 2)
 
     # find speed_data with smallest recommended speed
     def select_speed(self, speed_data: [SpeedData]):
+        """Selects the smallest speed out of the speeds provided"""
         min_speed = 1000
         index_of_min_speed = -1
         for i, sd in enumerate(speed_data):
@@ -581,6 +608,7 @@ class ThrottleController():
         return points
 
     def get_radius(self, wp):
+        """Gets the radius of a turn given 3 waypoints"""
         point1 = (wp[0].location[0], wp[0].location[1])
         point2 = (wp[1].location[0], wp[1].location[1])
         point3 = (wp[2].location[0], wp[2].location[1])
