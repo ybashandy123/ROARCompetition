@@ -201,53 +201,53 @@ class RoarCompetitionSolution:
                 "Ki": 0.0
         },
         "90": {
-                "Kp": 0.58,
-                "Kd": 0.09,
+                "Kp": 0.68,
+                "Kd": 0,
                 "Ki": 0.09
         },
         "100": {
-                "Kp": 0.52,
-                "Kd": 0.1,
+                "Kp": 0.62,
+                "Kd": 0,
                 "Ki": 0.1
         },
         "120": {
-                "Kp": 0.47,
-                "Kd": 0.1,
+                "Kp": 0.57,
+                "Kd": 0,
                 "Ki": 0.1
         },
         "130": {
-                "Kp": 0.43,
-                "Kd": 0.1,
+                "Kp": 0.53,
+                "Kd": 0,
                 "Ki": 0.09
         },
         "140": {
-                "Kp": 0.38,
-                "Kd": 0.1,
+                "Kp": 0.48,
+                "Kd": 0,
                 "Ki": 0.09
         },
         "160": {
-                "Kp": 0.33,
-                "Kd": 0.12,
+                "Kp": 0.43,
+                "Kd": 0,
                 "Ki": 0.06
         },
         "180": {
-                "Kp": 0.21,
-                "Kd": 0.1,
+                "Kp": 0.38,
+                "Kd": 0,
                 "Ki": 0.05
         },
         "200": {
-                "Kp": 0.18,
-                "Kd": 0.1,
+                "Kp": 0.33,
+                "Kd": 0,
                 "Ki": 0.04
         },
         "230": {
-                "Kp": 0.15,
-                "Kd": 0.1,
+                "Kp": 0.28,
+                "Kd": 0,
                 "Ki": 0.05
         },
         "300": {
-                "Kp": 0.1,
-                "Kd": 0.008,
+                "Kp": 0.2,
+                "Kd": 0,
                 "Ki": 0.017
         }
         }
@@ -394,10 +394,8 @@ class LatPIDController():
                 break
         if (sector in [5]):
             k_p = 0.425
-            k_d / 1.5
         elif (sector in [6, 7]):
-            k_p = 0.95
-            # k_d * 2
+            k_p = 1.25
         elif (sector in [8, 9]):
             k_p = 0.557
         return np.array([k_p, k_d, k_i])
@@ -603,10 +601,10 @@ class ThrottleController():
 
     def speed_for_turn(self, distance: float, target_speed: float, current_speed: float):
         """
-        Takes in a speed and turn radius and produces a speed that the car should target
+        Takes in a target speed and distance and produces a speed that the car should target. Returns a SpeedData object
         """
-        d = (1/675) * (target_speed**2) + distance
-        max_speed = math.sqrt(675 * d)
+        d = (1/675) * (target_speed ** 2) + distance
+        max_speed = math.sqrt(800 * d)
         return SpeedData(distance, current_speed, target_speed, max_speed)
 
     def get_next_interesting_waypoints(self, current_location, more_waypoints):
@@ -680,7 +678,7 @@ class ThrottleController():
             mu = 1.5
         if current_section == 9:
             mu = 1.5
-        target_speed = math.sqrt(mu*9.81*radius) * 3.6
+        target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
         return max(20, min(target_speed, self.max_speed))  # clamp between 20 and max_speed
 
     def print_speed(self, text: str, s1: float, s2: float, s3: float, s4: float, curr_s: float):
