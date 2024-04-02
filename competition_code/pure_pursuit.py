@@ -126,7 +126,7 @@ def pure_pursuit_steer_control(state, trajectory, pind):
 
     delta = math.atan2(2.0 * WB * math.sin(alpha) / Lf, 1.0)
 
-    return delta, ind
+    return delta
 
 
 def plot_arrow(x, y, yaw, length=1.0, width=0.5, fc="r", ec="k"):
@@ -143,73 +143,73 @@ def plot_arrow(x, y, yaw, length=1.0, width=0.5, fc="r", ec="k"):
         plt.plot(x, y)
 
 
-def main():
-    #  target course
-    cx = np.arange(0, 50, 0.5)
-    cy = [math.sin(ix / 5.0) * ix / 2.0 for ix in cx]
+# def main():
+#     #  target course
+#     cx = np.arange(0, 50, 0.5)
+#     cy = [math.sin(ix / 5.0) * ix / 2.0 for ix in cx]
 
-    target_speed = 10.0 / 3.6  # [m/s]
+#     target_speed = 10.0 / 3.6  # [m/s]
 
-    T = 100.0  # max simulation time
+#     T = 100.0  # max simulation time
 
-    # initial state
-    state = State(x=-0.0, y=-3.0, yaw=0.0, v=0.0)
+#     # initial state
+#     state = State(x=-0.0, y=-3.0, yaw=0.0, v=0.0)
 
-    lastIndex = len(cx) - 1
-    time = 0.0
-    states = States()
-    states.append(time, state)
-    target_course = TargetCourse(cx, cy)
-    target_ind, _ = target_course.search_target_index(state)
+#     lastIndex = len(cx) - 1
+#     time = 0.0
+#     states = States()
+#     states.append(time, state)
+#     target_course = TargetCourse(cx, cy)
+#     target_ind, _ = target_course.search_target_index(state)
 
-    while T >= time and lastIndex > target_ind:
+#     while T >= time and lastIndex > target_ind:
 
-        # Calc control input
-        ai = proportional_control(target_speed, state.v)
-        di, target_ind = pure_pursuit_steer_control(
-            state, target_course, target_ind)
+#         # Calc control input
+#         ai = proportional_control(target_speed, state.v)
+#         di, target_ind = pure_pursuit_steer_control(
+#             state, target_course, target_ind)
 
-        state.update(ai, di)  # Control vehicle
+#         state.update(ai, di)  # Control vehicle
 
-        time += dt
-        states.append(time, state)
+#         time += dt
+#         states.append(time, state)
 
-        if show_animation:  # pragma: no cover
-            plt.cla()
-            # for stopping simulation with the esc key.
-            plt.gcf().canvas.mpl_connect(
-                'key_release_event',
-                lambda event: [exit(0) if event.key == 'escape' else None])
-            plot_arrow(state.x, state.y, state.yaw)
-            plt.plot(cx, cy, "-r", label="course")
-            plt.plot(states.x, states.y, "-b", label="trajectory")
-            plt.plot(cx[target_ind], cy[target_ind], "xg", label="target")
-            plt.axis("equal")
-            plt.grid(True)
-            plt.title("Speed[km/h]:" + str(state.v * 3.6)[:4])
-            plt.pause(0.001)
+#         if show_animation:  # pragma: no cover
+#             plt.cla()
+#             # for stopping simulation with the esc key.
+#             plt.gcf().canvas.mpl_connect(
+#                 'key_release_event',
+#                 lambda event: [exit(0) if event.key == 'escape' else None])
+#             plot_arrow(state.x, state.y, state.yaw)
+#             plt.plot(cx, cy, "-r", label="course")
+#             plt.plot(states.x, states.y, "-b", label="trajectory")
+#             plt.plot(cx[target_ind], cy[target_ind], "xg", label="target")
+#             plt.axis("equal")
+#             plt.grid(True)
+#             plt.title("Speed[km/h]:" + str(state.v * 3.6)[:4])
+#             plt.pause(0.001)
 
-    # Test
-    assert lastIndex >= target_ind, "Cannot goal"
+#     # Test
+#     assert lastIndex >= target_ind, "Cannot goal"
 
-    if show_animation:  # pragma: no cover
-        plt.cla()
-        plt.plot(cx, cy, ".r", label="course")
-        plt.plot(states.x, states.y, "-b", label="trajectory")
-        plt.legend()
-        plt.xlabel("x[m]")
-        plt.ylabel("y[m]")
-        plt.axis("equal")
-        plt.grid(True)
+#     if show_animation:  # pragma: no cover
+#         plt.cla()
+#         plt.plot(cx, cy, ".r", label="course")
+#         plt.plot(states.x, states.y, "-b", label="trajectory")
+#         plt.legend()
+#         plt.xlabel("x[m]")
+#         plt.ylabel("y[m]")
+#         plt.axis("equal")
+#         plt.grid(True)
 
-        plt.subplots(1)
-        plt.plot(states.t, [iv * 3.6 for iv in states.v], "-r")
-        plt.xlabel("Time[s]")
-        plt.ylabel("Speed[km/h]")
-        plt.grid(True)
-        plt.show()
+#         plt.subplots(1)
+#         plt.plot(states.t, [iv * 3.6 for iv in states.v], "-r")
+#         plt.xlabel("Time[s]")
+#         plt.ylabel("Speed[km/h]")
+#         plt.grid(True)
+#         plt.show()
 
 
-if __name__ == '__main__':
-    print("Pure pursuit path tracking simulation start")
-    main()
+# if __name__ == '__main__':
+#     print("Pure pursuit path tracking simulation start")
+#     main()
