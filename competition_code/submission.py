@@ -58,10 +58,11 @@ class RoarCompetitionSolution:
 
     async def initialize(self) -> None:
         # FIXME check to make sure that forcing your own waypoints here is actually legal. If not, move it to somewhere that is legal
-        self.maneuverable_waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(np.load("competition_code\\waypoints.npz")) 
+        self.maneuverable_waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(np.load("competition_code\\waypoints\\waypoints3.npz"))
         num_sections = 10
         indexes_per_section = len(self.maneuverable_waypoints) // num_sections
         self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
+        print(f"True total length: {len(self.maneuverable_waypoints) * 3}")
         print(f"1 lap length: {len(self.maneuverable_waypoints)}")
         print(f"Section indexes: {self.section_indeces}")
 
@@ -157,12 +158,13 @@ class RoarCompetitionSolution:
             70: 11,
             90: 12,
             110: 13,
-            130: 14,
-            160: 16,
-            180: 20,
-            200: 24,
-            300: 24
+            130: 15,
+            160: 17,
+            180: 21,
+            200: 25,
+            300: 26
         }
+        
         num_waypoints = 3
         for speed_upper_bound, num_points in speed_to_lookahead_dict.items():
             if speed < speed_upper_bound:
