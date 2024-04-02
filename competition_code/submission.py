@@ -119,7 +119,7 @@ class RoarCompetitionSolution:
 
         # Proportional controller to steer the vehicle
         steer_control = self.lat_pid_controller.run(
-            vehicle_location, vehicle_rotation, waypoint_to_follow, 20)
+            vehicle_location, vehicle_rotation, waypoint_to_follow)
 
         # Proportional controller to control the vehicle's speed
         waypoints_for_throttle = \
@@ -147,7 +147,6 @@ class RoarCompetitionSolution:
         #             + " cur_sec: " + str(self.current_section)
         #             ) 
 
-
         await self.vehicle.apply_action(control)
         return control
 
@@ -156,14 +155,14 @@ class RoarCompetitionSolution:
         Returns the number of waypoints to look ahead based on the speed the car is currently going
         """
         speed_to_lookahead_dict = {
-            70: 11,
-            90: 12,
-            110: 13,
-            130: 15,
-            160: 17,
-            180: 21,
-            200: 25,
-            300: 26
+            70: 13,
+            90: 14,
+            110: 15,
+            130: 17,
+            160: 19,
+            180: 23,
+            200: 27,
+            300: 28
         }
         
         num_waypoints = 3
@@ -252,107 +251,12 @@ class RoarCompetitionSolution:
             target_waypoint =  self.maneuverable_waypoints[next_waypoint_index]
 
         return target_waypoint
-    
-# class LatPIDController():
-#     def __init__(self, config: dict, dt: float = 0.05):
-#         self.config = config
-#         self.steering_boundary = (-1.0, 1.0)
-#         self._error_buffer = deque(maxlen=10)
-#         self._dt = dt
-
-#     def run(self, vehicle_location, vehicle_rotation, current_speed, next_waypoint, sector) -> float:
-#         """
-#         Calculates a vector that represent where you are going.
-        
-#         Args:
-#             next_waypoint ():
-#             **kwargs ():
-
-#         Returns:
-#             lat_control
-#         """
-#         # calculate a vector that represent where you are going
-#         v_begin = vehicle_location
-#         direction_vector = np.array([
-#             np.cos(normalize_rad(vehicle_rotation[2])),
-#             np.sin(normalize_rad(vehicle_rotation[2])),
-#             0])
-#         v_end = v_begin + direction_vector
-
-#         v_vec = np.array([(v_end[0] - v_begin[0]), (v_end[1] - v_begin[1]), 0])
-        
-#         # calculate error projection
-#         w_vec = np.array(
-#             [
-#                 next_waypoint.location[0] - v_begin[0],
-#                 next_waypoint.location[1] - v_begin[1],
-#                 0,
-#             ]
-#         )
-
-#         v_vec_normed = v_vec / np.linalg.norm(v_vec)
-#         w_vec_normed = w_vec / np.linalg.norm(w_vec)
-#         error = np.arccos(min(max(v_vec_normed @ w_vec_normed.T, -1), 1)) # makes sure arccos input is between -1 and 1, inclusive
-#         _cross = np.cross(v_vec_normed, w_vec_normed)
-
-#         if _cross[2] > 0:
-#             error *= -1
-#         self._error_buffer.append(error)
-#         if len(self._error_buffer) >= 2:
-#             _de = (self._error_buffer[-1] - self._error_buffer[-2]) / self._dt
-#             _ie = sum(self._error_buffer) * self._dt
-#         else:
-#             _de = 0.0
-#             _ie = 0.0
-
-#         k_p, k_d, k_i = self.find_k_values(current_speed=current_speed, config=self.config, sector=sector)
-
-#         lat_control = float(
-#             np.clip((k_p * error) + (k_d * _de) + (k_i * _ie), self.steering_boundary[0], self.steering_boundary[1])
-#         )
-        
-#         # Debug status indicators
-#         # PIDFastController.sdprint("steer: " + str(lat_control) + " err" + str(error) + " k_p=" + str(k_p) + " de" + str(_de) + " k_d=" + str(k_d) 
-#         #     + " ie" + str(_ie) + " k_i=" + str(k_i) + " sum" + str(sum(self._error_buffer)))
-#         # print("cross " + str(_cross))
-#         # print("loc " + str(vehicle_location) + " rot "  + str(vehicle_rotation))
-#         # print(" next.loc " + str(next_waypoint.location))
-
-#         # print("steer: " + str(lat_control) + " speed: " + str(current_speed) + " err" + str(error) + " k_p=" + str(k_p) + " de" + str(_de) + " k_d=" + str(k_d) 
-#         #     + " ie" + str(_ie) + " k_i=" + str(k_i) + " sum" + str(sum(self._error_buffer)))
-
-#         return lat_control
-    
-#     def find_k_values(self, current_speed: float, config: dict, sector: int) -> np.array:
-#         """
-#         Returns the PID lateral PID values based on the current speed and sector
-#         """
-
-#         k_p, k_d, k_i = 1, 0, 0
-#         for speed_upper_bound, kvalues in config.items():
-#             speed_upper_bound = float(speed_upper_bound)
-#             if current_speed < speed_upper_bound:
-#                 k_p, k_d, k_i = kvalues["Kp"], kvalues["Kd"], kvalues["Ki"]
-#                 break
-            
-#         if (sector in [5]):
-#             k_p = 0.425
-#         elif (sector in [6, 7]):
-#             k_p = 1.25
-#         elif (sector in [8, 9]):
-#             k_p = 0.557
-            
-#         return np.array([k_p, k_d, k_i])
-
-    
-#     def normalize_rad(rad : float):
-#         return (rad + np.pi) % (2 * np.pi) - np.pi
 
 class LatPIDController():
     def __init__(self, config: dict, dt: float = 0.05):
         self.lookahead_distance = 10
 
-    def run(self, vehicle_location, vehicle_rotation, next_waypoint, lookAheadDistance) -> float:
+    def run(self, vehicle_location, vehicle_rotation, next_waypoint) -> float:
         """
         Calculates the steering command using the pure pursuit algorithm.
         
@@ -378,7 +282,7 @@ class LatPIDController():
         # Calculate steering command
         alpha = normalize_rad(math.atan2(waypoint_vector_normalized[1], waypoint_vector_normalized[0])) - normalize_rad(vehicle_rotation[2])
 
-        steering_command = math.atan2(2.0 * 4.7 * math.sin(alpha) / lookAheadDistance, 1.0)
+        steering_command = -1.5*math.atan2(2.0 * 4.7 * math.sin(alpha) / distance_to_waypoint, 1.0)
         
         return float(steering_command)
 
