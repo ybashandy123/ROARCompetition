@@ -1,9 +1,13 @@
 import numpy as np
 import math
-import deque
-import speedData as SpeedData
+from collections import deque
+from speedData import SpeedData
+import roar_py_interface
 
-class ThrottleController():
+def distance_p_to_p(p1: roar_py_interface.RoarPyWaypoint, p2: roar_py_interface.RoarPyWaypoint):
+    return np.linalg.norm(p2.location[:2] - p1.location[:2])
+
+class ThrottleController:
     display_debug = False
     debug_strings = deque(maxlen=1000)
 

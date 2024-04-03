@@ -4,8 +4,8 @@ import math
 def normalize_rad(rad : float):
     return (rad + np.pi) % (2 * np.pi) - np.pi
 
-class LatPIDController():
-    def __init__(self, config: dict, dt: float = 0.05):
+class LatController:
+    def __init__(self):
         self.lookahead_distance = 10
 
     def run(self, vehicle_location, vehicle_rotation, next_waypoint) -> float:

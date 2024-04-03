@@ -62,7 +62,7 @@ class ManualControlViewer:
             new_control['steer'] = -0.2
         if pressed_keys[pygame.K_RIGHT]:
             new_control['steer'] = 0.2
-        new_control['throttle'] = 0.4
+        new_control['throttle'] = 0.45
         
         image_surface = pygame.image.fromstring(image_pil.tobytes(), image_pil.size, image_pil.mode).convert()
         if occupancy_map_rgb is not None:

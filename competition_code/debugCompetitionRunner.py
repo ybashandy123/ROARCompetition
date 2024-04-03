@@ -203,10 +203,10 @@ async def evaluate_solution(
         # terminate if there is major collision
         collision_impulse_norm = np.linalg.norm(collision_sensor.get_last_observation().impulse_normal)
         if collision_impulse_norm > 100.0:
-            # vehicle.close()
+            vehicle.close()
             print(f"major collision of intensity {collision_impulse_norm}")
             # return None
-            await rule.respawn()
+            # await rule.respawn()
         
         if rule.lap_finished():
             break
