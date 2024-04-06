@@ -1,7 +1,7 @@
 import numpy as np
 import math
 from collections import deque
-from speedData import SpeedData
+from SpeedData import SpeedData
 import roar_py_interface
 
 def distance_p_to_p(p1: roar_py_interface.RoarPyWaypoint, p2: roar_py_interface.RoarPyWaypoint):

@@ -11,8 +11,8 @@ from typing import List, Tuple, Dict, Optional
 import math
 import numpy as np
 import roar_py_interface
-from latController import LatController
-from throttleController import ThrottleController
+from LateralController import LatController
+from ThrottleController import ThrottleController
 
 def filter_waypoints(location : np.ndarray, current_idx: int, waypoints : List[roar_py_interface.RoarPyWaypoint]) -> int:
     def dist_to_waypoint(waypoint : roar_py_interface.RoarPyWaypoint):
@@ -100,7 +100,7 @@ class RoarCompetitionSolution:
 
         # compute and print section timing
         for i, section_ind in enumerate(self.section_indeces):
-            if section_ind -2 <= self.current_waypoint_idx \
+            if section_ind - 2 <= self.current_waypoint_idx \
                 and self.current_waypoint_idx <= section_ind + 2 \
                     and i != self.current_section:
                 elapsed_ticks = self.num_ticks - self.section_start_ticks
@@ -134,15 +134,15 @@ class RoarCompetitionSolution:
         
         if self.num_ticks % 5 == 0:
             print(
-                f"- Target waypoint: {currentWaypoint} \n\
-                Current location: {vehicle_location} \n\
-                Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}")
+                f"- Target waypoint: ({currentWaypoint[0]:.2f}, {currentWaypoint[1]:.2f}) \n\
+Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
+Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n")
 
             print(
                 f"--- Throttle: {throttle:.3f} \n\
-                Brake: {brake:.3f} \n\
-                Steer: {steer_control:.10f} \n\
-                Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}"
+Brake: {brake:.3f} \n\
+Steer: {steer_control:.10f} \n\
+Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
             ) 
 
         await self.vehicle.apply_action(control)
@@ -153,14 +153,15 @@ class RoarCompetitionSolution:
         Returns the number of waypoints to look ahead based on the speed the car is currently going
         """
         speed_to_lookahead_dict = {
-            70: 13,
-            90: 14,
-            110: 15,
-            130: 17,
-            160: 19,
-            180: 23,
-            200: 27,
-            300: 28
+            70: 12,
+            90: 13,
+            110: 14,
+            130: 16,
+            160: 18,
+            180: 20,
+            200: 23,
+            250: 25,
+            300: 27
         }
         
         num_waypoints = 3
@@ -207,15 +208,16 @@ class RoarCompetitionSolution:
         """
         next_waypoint_index = self.get_lookahead_index(current_speed)
         lookahead_value = self.get_lookahead_value(current_speed)
-        num_points = lookahead_value * 2
-        
+                
         # Section specific tuning. Lookahead values in some areas may be too high to offer late braking
         if self.current_section in [0]:
             num_points = lookahead_value
-        if self.current_section in [6, 7]:
+        elif self.current_section in [6, 7]:
+            num_points = 1
+        elif self.current_section in [8, 9]:
             num_points = lookahead_value // 2
-        if self.current_section in [8, 9]:
-            num_points = lookahead_value // 2
+        else: 
+            num_points = lookahead_value * 2
 
         start_index_for_avg = (next_waypoint_index - (num_points // 2)) % len(self.maneuverable_waypoints)
 
