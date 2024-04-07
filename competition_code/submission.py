@@ -211,7 +211,7 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         if self.current_section in [0]:
             num_points = lookahead_value
         elif self.current_section in [6, 7]:
-            num_points = 220
+            num_points = 225
         elif self.current_section in [8, 9]:
             num_points = lookahead_value // 2
         else: 

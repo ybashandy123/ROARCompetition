@@ -111,8 +111,8 @@ class ThrottleController:
 
         if percent_of_max > 1:
             # Consider slowing down
-            if speed_data.current_speed > 200:
-                brake_threshold_multiplier = 1.0
+            if speed_data.current_speed > 200: # Brake earlier at higher speeds
+                brake_threshold_multiplier = 0.9
             if percent_of_max > 1 + (brake_threshold_multiplier * percent_change_per_tick):
                 if self.brake_ticks > 0:
                     self.dprint("tb: tick " + str(self.tick_counter) + " brake: counter " + str(self.brake_ticks))
