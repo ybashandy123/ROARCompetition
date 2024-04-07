@@ -2,7 +2,7 @@ import numpy as np
 import math
 
 def normalize_rad(rad : float):
-    return (rad) % (2 * np.pi)
+    return rad % (2 * np.pi)
 
 class LatController:
     def __init__(self):

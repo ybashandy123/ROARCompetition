@@ -117,15 +117,15 @@ class RoarCompetitionSolution:
 
         # Proportional controller to control the vehicle's speed
         waypoints_for_throttle = \
-            (self.maneuverable_waypoints + self.maneuverable_waypoints)[new_waypoint_index:new_waypoint_index + 300]
+            (self.maneuverable_waypoints * 2)[new_waypoint_index:new_waypoint_index + 500]
         throttle, brake, gear = self.throttle_controller.run(
             waypoints_for_throttle, vehicle_location, current_speed_kmh, self.current_section)
 
         control = {
-            "throttle": np.clip(throttle, 0.0, 1.0),
-            "steer": np.clip(steer_control, -1.0, 1.0),
-            "brake": np.clip(brake, 0.0, 1.0),
-            "hand_brake": 0.0,
+            "throttle": np.clip(throttle, 0, 1),
+            "steer": np.clip(steer_control, -1, 1),
+            "brake": np.clip(brake, 0, 1),
+            "hand_brake": 0,
             "reverse": 0,
             "target_gear": gear
         }
@@ -139,7 +139,8 @@ Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
 Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n")
 
             print(
-                f"--- Throttle: {throttle:.3f} \n\
+                f"--- Speed: {current_speed_kmh:.2f} kph \n\
+Throttle: {throttle:.3f} \n\
 Brake: {brake:.3f} \n\
 Steer: {steer_control:.10f} \n\
 Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
@@ -153,23 +154,19 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         Returns the number of waypoints to look ahead based on the speed the car is currently going
         """
         speed_to_lookahead_dict = {
-            70: 12,
             90: 13,
             110: 14,
-            130: 16,
+            130: 15,
             160: 18,
             180: 20,
             200: 23,
-            250: 25,
-            300: 27
+            250: 27,
+            300: 30
         }
         
-        num_waypoints = 3
         for speed_upper_bound, num_points in speed_to_lookahead_dict.items():
             if speed < speed_upper_bound:
-              num_waypoints = num_points
-              break
-        return num_waypoints
+              return num_points
 
     def get_lookahead_index(self, speed):
         """
@@ -200,6 +197,7 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         else:
             new_waypoint_index = self.get_lookahead_index(current_speed)
             target_waypoint = self.maneuverable_waypoints[new_waypoint_index]
+            
         return target_waypoint
 
     def average_point(self, current_speed):
@@ -213,7 +211,7 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         if self.current_section in [0]:
             num_points = lookahead_value
         elif self.current_section in [6, 7]:
-            num_points = 1
+            num_points = 220
         elif self.current_section in [8, 9]:
             num_points = lookahead_value // 2
         else: 
@@ -248,6 +246,6 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
             #       + " curr_speed: " + str(current_speed))
 
         else:
-            target_waypoint =  self.maneuverable_waypoints[next_waypoint_index]
+            target_waypoint = self.maneuverable_waypoints[next_waypoint_index]
 
         return target_waypoint
