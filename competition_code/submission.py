@@ -53,7 +53,7 @@ class RoarCompetitionSolution:
 
     async def initialize(self) -> None:
         # FIXME check to make sure that forcing your own waypoints here is actually legal. If not, move it to somewhere that is legal
-        self.maneuverable_waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(np.load("competition_code\\waypoints\\waypoints4.npz"))
+        self.maneuverable_waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(np.load("competition_code\\waypoints\\waypoints6.npz"))
         num_sections = 10
         indexes_per_section = len(self.maneuverable_waypoints) // num_sections
         self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
@@ -154,14 +154,14 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         Returns the number of waypoints to look ahead based on the speed the car is currently going
         """
         speed_to_lookahead_dict = {
-            90: 13,
-            110: 14,
-            130: 15,
-            160: 18,
+            90: 8,
+            110: 11,
+            130: 12,
+            160: 16,
             180: 20,
-            200: 23,
-            250: 27,
-            300: 30
+            200: 25,
+            250: 28,
+            300: 32
         }
         
         for speed_upper_bound, num_points in speed_to_lookahead_dict.items():
@@ -208,10 +208,12 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         lookahead_value = self.get_lookahead_value(current_speed)
                 
         # Section specific tuning. Lookahead values in some areas may be too high to offer late braking
-        if self.current_section in [0]:
-            num_points = lookahead_value
+        # if self.current_section in [0]:
+        #     num_points = lookahead_value
+        if self.current_section in [4]:
+            num_points = lookahead_value * 2 - 10
         elif self.current_section in [6, 7]:
-            num_points = 225
+            num_points = 200
         elif self.current_section in [8, 9]:
             num_points = lookahead_value // 2
         else: 

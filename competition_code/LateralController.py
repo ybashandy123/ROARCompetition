@@ -5,9 +5,6 @@ def normalize_rad(rad : float):
     return rad % (2 * np.pi)
 
 class LatController:
-    def __init__(self):
-        self.lookahead_distance = 10
-
     def run(self, vehicle_location, vehicle_rotation, next_waypoint) -> float:
         """
         Calculates the steering command using the pure pursuit algorithm.

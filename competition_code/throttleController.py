@@ -103,7 +103,7 @@ class ThrottleController:
         #             + " maxs= " + str(round(speed_data.recommended_speed_now, 2)) + " pcnt= " + str(round(percent_of_max, 2)))
 
         percent_change_per_tick = 0.07 # speed drop for one time-tick of braking
-        speed_up_threshold = 0.99
+        speed_up_threshold = 0.9
         throttle_decrease_multiple = 0.7
         throttle_increase_multiple = 1.25
         brake_threshold_multiplier = 1.0
@@ -200,7 +200,7 @@ class ThrottleController:
         Takes in a target speed and distance and produces a speed that the car should target. Returns a SpeedData object
         """
         d = (1/675) * (target_speed ** 2) + distance
-        max_speed = math.sqrt(800 * d)
+        max_speed = math.sqrt(825 * d)
         return SpeedData(distance, current_speed, target_speed, max_speed)
 
     def get_next_interesting_waypoints(self, current_location, more_waypoints):
