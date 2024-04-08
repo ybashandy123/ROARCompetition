@@ -203,10 +203,10 @@ async def evaluate_solution(
         # terminate if there is major collision
         collision_impulse_norm = np.linalg.norm(collision_sensor.get_last_observation().impulse_normal)
         if collision_impulse_norm > 100.0:
-            # vehicle.close()
+            vehicle.close()
             print(f"major collision of intensity {collision_impulse_norm}")
             # return None
-            await rule.respawn()
+            # await rule.respawn()
         
         if rule.lap_finished():
             break
@@ -246,9 +246,20 @@ async def main():
         enable_visualization=True
     )
     if evaluation_result is not None:
-        print("Solution finished in {} seconds".format(evaluation_result["elapsed_time"]))
+        print(f"Solution finished in {evaluation_result['elapsed_time']} seconds")
+        return evaluation_result["elapsed_time"]
     else:
         print("Solution failed to finish in time")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try: 
+        numRuns = int(input("Please enter the number of runs you would like to perform: "))
+    except: 
+        print("That is not a valid input")
+    lapTimeTotal = 0
+    
+    for i in range(numRuns):
+        print(f"\nRun {i + 1}\n")
+        lapTimeTotal += asyncio.run(main())
+    
+    print(f"Average time over {numRuns} runs: {(lapTimeTotal / numRuns):.3f} seconds")
