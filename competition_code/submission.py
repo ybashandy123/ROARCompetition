@@ -117,7 +117,7 @@ class RoarCompetitionSolution:
 
         # Proportional controller to control the vehicle's speed
         waypoints_for_throttle = \
-            (self.maneuverable_waypoints * 2)[new_waypoint_index:new_waypoint_index + 500]
+            (self.maneuverable_waypoints * 2)[new_waypoint_index:new_waypoint_index + 525]
         throttle, brake, gear = self.throttle_controller.run(
             waypoints_for_throttle, vehicle_location, current_speed_kmh, self.current_section)
 
