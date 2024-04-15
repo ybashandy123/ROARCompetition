@@ -262,4 +262,4 @@ if __name__ == "__main__":
         print(f"\nRun {i + 1}\n")
         lapTimeTotal += asyncio.run(main())
     
-    print(f"Average time over {numRuns} runs: {(lapTimeTotal / numRuns):.3f} seconds")
+    print(f"\nAverage time over {numRuns} runs: {(lapTimeTotal / numRuns):.3f} seconds\n")

@@ -207,13 +207,12 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         next_waypoint_index = self.get_lookahead_index(current_speed)
         lookahead_value = self.get_lookahead_value(current_speed)
                 
-        # Section specific tuning. Lookahead values in some areas may be too high to offer late braking
-        # if self.current_section in [0]:
-        #     num_points = lookahead_value
+        # Section specific tuning
         if self.current_section in [4]:
-            num_points = lookahead_value * 2 - 10
+            num_points = lookahead_value * 2 - 10 # Increase to cut corners more, decrease to go wider
         elif self.current_section in [6, 7]:
-            num_points = 200
+            num_points = lookahead_value * 2
+            next_waypoint_index = self.current_waypoint_idx + 10
         elif self.current_section in [8, 9]:
             num_points = lookahead_value // 2
         else: 
