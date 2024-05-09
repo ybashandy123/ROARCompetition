@@ -1,7 +1,12 @@
 import roar_py_interface
 import roar_py_carla
+import pygame
+# from submission import RoarCompetitionSolution
+# from submission_v1 import RoarCompetitionSolution
+# from submission_v2 import RoarCompetitionSolution
 from submission import RoarCompetitionSolution
-from infrastructure import RoarCompetitionAgentWrapper, ManualControlViewer
+# from infrastructure import RoarCompetitionAgentWrapper, ManualControlViewer
+from infrastructure_debug import RoarCompetitionAgentWrapper, ManualControlViewer
 from typing import List, Type, Optional, Dict, Any
 import carla
 import numpy as np
@@ -77,9 +82,8 @@ class RoarCompetitionRule:
         
         self.furthest_waypoints_index += min_index #= new_furthest_index
         self._last_vehicle_location = current_location
-        print(f"reach waypoints {self.furthest_waypoints_index} at {self.waypoints[self.furthest_waypoints_index].location}")
+        # print(f"reach waypoints {self.furthest_waypoints_index} at {self.waypoints[self.furthest_waypoints_index].location}")
 
-    
     async def respawn(
         self
     ):
@@ -129,8 +133,8 @@ async def evaluate_solution(
     assert vehicle is not None
     camera = vehicle.attach_camera_sensor(
         roar_py_interface.RoarPyCameraSensorDataRGB,
-        np.array([-2.0 * vehicle.bounding_box.extent[0], 0.0, 3.0 * vehicle.bounding_box.extent[2]]), # relative position
-        # np.array([-12.0 * vehicle.bounding_box.extent[0], 0.0, 18.0 * vehicle.bounding_box.extent[2]]), # relative position
+        # np.array([-2.0 * vehicle.bounding_box.extent[0], 0.0, 3.0 * vehicle.bounding_box.extent[2]]), # relative position
+        np.array([-12.0 * vehicle.bounding_box.extent[0], 0.0, 18.0 * vehicle.bounding_box.extent[2]]), # relative position
         np.array([0, 10/180.0*np.pi, 0]), # relative rotation
         image_width=1024,
         image_height=768
@@ -199,16 +203,19 @@ async def evaluate_solution(
         # terminate if there is major collision
         collision_impulse_norm = np.linalg.norm(collision_sensor.get_last_observation().impulse_normal)
         if collision_impulse_norm > 100.0:
-            # vehicle.close()
-            print(f"major collision of tensity {collision_impulse_norm}")
+            vehicle.close()
+            print(f"major collision of intensity {collision_impulse_norm}")
             # return None
-            await rule.respawn()
+            # await rule.respawn()
         
         if rule.lap_finished():
             break
         
         if enable_visualization:
-            if viewer.render(camera.get_last_observation()) is None:
+            # if viewer.render(camera.get_last_observation()) is None:
+            if viewer.render(camera.get_last_observation(), 
+                            #  occupancy_map=occupancy_map_sensor.get_last_observation().occupancy_map, 
+                             vehicle=vehicle) is None:
                 vehicle.close()
                 return None
 
@@ -239,9 +246,20 @@ async def main():
         enable_visualization=True
     )
     if evaluation_result is not None:
-        print("Solution finished in {} seconds".format(evaluation_result["elapsed_time"]))
+        print(f"Solution finished in {evaluation_result['elapsed_time']} seconds")
+        return evaluation_result["elapsed_time"]
     else:
         print("Solution failed to finish in time")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try: 
+        numRuns = int(input("Please enter the number of runs you would like to perform: "))
+    except: 
+        print("That is not a valid input")
+    lapTimeTotal = 0
+    
+    for i in range(numRuns):
+        print(f"\nRun {i + 1}\n")
+        lapTimeTotal += asyncio.run(main())
+    
+    print(f"\nAverage time over {numRuns} runs: {(lapTimeTotal / numRuns):.3f} seconds\n")

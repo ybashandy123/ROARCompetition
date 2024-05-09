@@ -4,74 +4,76 @@ Please do not change anything else but fill out the to-do sections.
 """
 
 from collections import deque
-import math
+from functools import reduce
+import json
+import os
 from typing import List, Tuple, Dict, Optional
-import roar_py_interface
+import math
 import numpy as np
+import roar_py_interface
+from LateralController import LatController
+from ThrottleController import ThrottleController
 
-def normalize_rad(rad : float):
-    return (rad + np.pi) % (2 * np.pi) - np.pi
-
-def filter_waypoints(location : np.ndarray, currentIdx: int, waypoints : List[roar_py_interface.RoarPyWaypoint]) -> int:
-    #Takes in the current car location, the index of the waypoints list, and the waypoint list to get the closest waypoint
+def filter_waypoints(location : np.ndarray, current_idx: int, waypoints : List[roar_py_interface.RoarPyWaypoint]) -> int:
     def dist_to_waypoint(waypoint : roar_py_interface.RoarPyWaypoint):
         return np.linalg.norm(
             location[:2] - waypoint.location[:2]
         )
-    for i in range(currentIdx, len(waypoints) + currentIdx):
-        if dist_to_waypoint(waypoints[i%len(waypoints)]) < 2:
+    for i in range(current_idx, len(waypoints) + current_idx):
+        if dist_to_waypoint(waypoints[i%len(waypoints)]) < 3:
             return i % len(waypoints)
-    return currentIdx
+    return current_idx
 
 class RoarCompetitionSolution:
     def __init__(
         self,
-        maneuverableWaypoints: List[roar_py_interface.RoarPyWaypoint],
+        maneuverable_waypoints: List[roar_py_interface.RoarPyWaypoint],
         vehicle : roar_py_interface.RoarPyActor,
-        cameraSensor : roar_py_interface.RoarPyCameraSensor = None,
-        locationSensor : roar_py_interface.RoarPyLocationInWorldSensor = None,
-        velocitySensor : roar_py_interface.RoarPyVelocimeterSensor = None,
-        rpySensor : roar_py_interface.RoarPyRollPitchYawSensor = None,
-        occupancyMapSensor : roar_py_interface.RoarPyOccupancyMapSensor = None,
+        camera_sensor : roar_py_interface.RoarPyCameraSensor = None,
+        location_sensor : roar_py_interface.RoarPyLocationInWorldSensor = None,
+        velocity_sensor : roar_py_interface.RoarPyVelocimeterSensor = None,
+        rpy_sensor : roar_py_interface.RoarPyRollPitchYawSensor = None,
+        occupancy_map_sensor : roar_py_interface.RoarPyOccupancyMapSensor = None,
         collision_sensor : roar_py_interface.RoarPyCollisionSensor = None,
     ) -> None:
-        self.maneuverableWaypoints = maneuverableWaypoints
+        self.maneuverable_waypoints = maneuverable_waypoints
         self.vehicle = vehicle
-        self.camera_sensor = cameraSensor
-        self.location_sensor = locationSensor
-        self.velocity_sensor = velocitySensor
-        self.rpy_sensor = rpySensor
-        self.occupancy_map_sensor = occupancyMapSensor
+        self.camera_sensor = camera_sensor
+        self.location_sensor = location_sensor
+        self.velocity_sensor = velocity_sensor
+        self.rpy_sensor = rpy_sensor
+        self.occupancy_map_sensor = occupancy_map_sensor
         self.collision_sensor = collision_sensor
-    
+        self.lat_controller = LatController()
+        self.throttle_controller = ThrottleController()
+        self.section_indeces = []
+        self.num_ticks = 0
+        self.section_start_ticks = 0
+        self.current_section = -1
+
     async def initialize(self) -> None:
-        # TODO: You can do some initial computation here if you want to.
-        # For example, you can compute the path to the first waypoint.
+        # FIXME check to make sure that forcing your own waypoints here is actually legal. If not, move it to somewhere that is legal
+        self.maneuverable_waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(np.load("competition_code\\waypoints\\waypoints6.npz"))
+        num_sections = 10
+        indexes_per_section = len(self.maneuverable_waypoints) // num_sections
+        self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
+        print(f"True total length: {len(self.maneuverable_waypoints) * 3}")
+        print(f"1 lap length: {len(self.maneuverable_waypoints)}")
+        print(f"Section indexes: {self.section_indeces}")
 
         # Receive location, rotation and velocity data 
-        vehicleLocation = self.location_sensor.get_last_gym_observation()
-        vehicleRotation = self.rpy_sensor.get_last_gym_observation()
-        vehicleVelocity = self.velocity_sensor.get_last_gym_observation()
+        vehicle_location = self.location_sensor.get_last_gym_observation()
+        vehicle_rotation = self.rpy_sensor.get_last_gym_observation()
+        vehicle_velocity = self.velocity_sensor.get_last_gym_observation()
 
-        self.currentWaypointIdx = 10
-        self.currentWaypointIdx = filter_waypoints(
-            vehicleLocation,
-            self.currentWaypointIdx,
-            self.maneuverableWaypoints, 
+        self.current_waypoint_idx = 0
+        self.current_waypoint_idx = filter_waypoints(
+            vehicle_location,
+            self.current_waypoint_idx,
+            self.maneuverable_waypoints
         )
 
-        # Creates the section dividers and sets the current zone to 0
-        # Zone 0: Start - after turn 4
-        # Zone 1: Turn 5 - Before turn 6
-        # Zone 2: Turn6 - Turn 7
-        # Zone 3: After turn 7 - Before turn 9 (Long 180 degree turn)
-        # Zone 4: Turns 9 and 10 (Sharp S-turn after long straightaway)
-        self.regions = [[740, 720], [90, 215], [-80, -160], [-345, 0], [-290, 400]] # (-290, 400) is the start of the track
-        self.currentRegion = 0
-        self.brakeLocations = [[75, 210], [-125, -950], [-340, 210]]
-        self.currentBrakeLocation = 0
 
-    
     async def step(
         self
     ) -> None:
@@ -80,94 +82,171 @@ class RoarCompetitionSolution:
         Note: You should not call receive_observation() on any sensor here, instead use get_last_observation() to get the last received observation.
         You can do whatever you want here, including apply_action() to the vehicle.
         """
-        # TODO: Implement your solution here.
+        self.num_ticks += 1
 
         # Receive location, rotation and velocity data 
-        vehicleLocation = self.location_sensor.get_last_gym_observation()
-        vehicleRotation = self.rpy_sensor.get_last_gym_observation()
-        vehicleVelocity = self.velocity_sensor.get_last_gym_observation()
-        vehicleVelocityNorm = np.linalg.norm(vehicleVelocity)
+        vehicle_location = self.location_sensor.get_last_gym_observation()
+        vehicle_rotation = self.rpy_sensor.get_last_gym_observation()
+        vehicle_velocity = self.velocity_sensor.get_last_gym_observation()
+        vehicle_velocity_norm = np.linalg.norm(vehicle_velocity)
+        current_speed_kmh = vehicle_velocity_norm * 3.6
         
         # Find the waypoint closest to the vehicle
-        self.currentWaypointIdx = filter_waypoints(
-            vehicleLocation,
-            self.currentWaypointIdx,
-            self.maneuverableWaypoints, 
+        self.current_waypoint_idx = filter_waypoints(
+            vehicle_location,
+            self.current_waypoint_idx,
+            self.maneuverable_waypoints
         )
-        # Generates the waypoint to follow based on the vehicle's speed
-        waypointToFollow = self.maneuverableWaypoints[(self.currentWaypointIdx + int(vehicleVelocityNorm / 2.75) + 5) % len(self.maneuverableWaypoints)]
 
-        # Calculate delta vector towards the target waypoint
-        vectorToWaypoint = (waypointToFollow.location - vehicleLocation)[:2]
-        heading_to_waypoint = np.arctan2(vectorToWaypoint[1],vectorToWaypoint[0])
+        # compute and print section timing
+        for i, section_ind in enumerate(self.section_indeces):
+            if section_ind - 2 <= self.current_waypoint_idx \
+                and self.current_waypoint_idx <= section_ind + 2 \
+                    and i != self.current_section:
+                elapsed_ticks = self.num_ticks - self.section_start_ticks
+                self.section_start_ticks = self.num_ticks
+                self.current_section = i
+                print(f"Section {i}: {elapsed_ticks} ticks")
 
-        # Calculate delta angle towards the target waypoint
-        deltaHeading = normalize_rad(heading_to_waypoint - vehicleRotation[2])
+        new_waypoint_index = self.get_lookahead_index(current_speed_kmh)
+        waypoint_to_follow = self.next_waypoint_smooth(current_speed_kmh)
 
-        # Proportional controller to steer the vehicle towards the target waypoint
-        steerControl = (
-            -8.0 / np.sqrt(vehicleVelocityNorm) * deltaHeading / np.pi
-        ) if vehicleVelocityNorm > 1e-2 else -np.sign(deltaHeading)
-        steerControl = np.clip(steerControl, -1.0, 1.0)
+        # Proportional controller to steer the vehicle
+        steer_control = self.lat_controller.run(
+            vehicle_location, vehicle_rotation, waypoint_to_follow)
 
-        # Calculates the distance to the final two turns of the track 
-
-        nextRegionDistance = math.sqrt((self.regions[self.currentRegion % len(self.regions)][0] - waypointToFollow.location[0]) ** 2 + (self.regions[self.currentRegion % len(self.regions)][1] - waypointToFollow.location[1]) ** 2)
-        nextBrakeDistance = math.sqrt((self.brakeLocations[self.currentBrakeLocation % len(self.brakeLocations)][0] - waypointToFollow.location[0]) ** 2 + (self.brakeLocations[self.currentBrakeLocation % len(self.brakeLocations)][1] - waypointToFollow.location[1]) ** 2)
-
-        # Calculates the appropriate throttle response based on the speed and angle to the next waypoint and the 'sector' the car is in
-        # TODO: Add better zone management and tune for zones 1 and 2
-        
-        if nextRegionDistance < 15:
-            self.currentRegion += 1
-
-        normalizedRegion = self.currentRegion % len(self.regions)
-        
-        if nextBrakeDistance < 10: 
-            throttle, brake, reverse, handBrake = 1, 1, 1, 1
-            self.currentBrakeLocation += 1
-        elif normalizedRegion < 2:
-            # Handles zones 0 and 1
-            if (abs(deltaHeading) > 0.017 and vehicleVelocityNorm > 37.5):
-                throttle, brake, reverse, handBrake = 1, 1, 1, 1
-            else:
-                throttle = 0.75 + (0.7 / deltaHeading - vehicleVelocityNorm) / 20
-                brake, reverse, handBrake = 0, 0, 0
-        elif normalizedRegion == 2:
-            # Handles zone 2
-            if (abs(deltaHeading) > 0.001 and vehicleVelocityNorm > 37.5):
-                throttle, brake, reverse, handBrake = 1, 1, 1, 1
-            else:
-                throttle = 0.75 + (0.7 / deltaHeading - vehicleVelocityNorm) / 20
-                brake, reverse, handBrake = 0, 0, 0
-        elif normalizedRegion == 3:
-            # Handles zone 3
-            if (abs(deltaHeading) > 0.007 and vehicleVelocityNorm > 50):
-                throttle, brake, reverse, handBrake = 1, 1, 1, 1
-            else:
-                throttle = 0.75 + (1 / deltaHeading - vehicleVelocityNorm) / 20
-                brake, reverse, handBrake = 0, 0, 0
-        else:
-            # Handles zone 4
-            if (abs(deltaHeading) > 0.0001 and vehicleVelocityNorm > 20):
-                throttle, brake, reverse, handBrake = 1, 1, 1, 1
-            else:
-                throttle = 1
-                brake, reverse, handBrake = 0, 0, 0
-
-        gear = max(1, (int)(vehicleVelocityNorm / 20))
+        # Proportional controller to control the vehicle's speed
+        waypoints_for_throttle = \
+            (self.maneuverable_waypoints * 2)[new_waypoint_index:new_waypoint_index + 560]
+        throttle, brake, gear = self.throttle_controller.run(
+            waypoints_for_throttle, vehicle_location, current_speed_kmh, self.current_section)
 
         control = {
-            "throttle": throttle,
-            "steer": steerControl,
-            "brake": brake,
-            "hand_brake": handBrake,
-            "reverse": reverse,
+            "throttle": np.clip(throttle, 0, 1),
+            "steer": np.clip(steer_control, -1, 1),
+            "brake": np.clip(brake, 0, 1),
+            "hand_brake": 0,
+            "reverse": 0,
             "target_gear": gear
         }
 
-        print(f"Current Speed: {vehicleVelocityNorm}\nBrake Value: {brake}")
-        print(f"Current region: {normalizedRegion}\nLap Number: {self.currentRegion // len(self.regions) + 1}\nDelta Heading: {deltaHeading}")
+        currentWaypoint = self.maneuverable_waypoints[self.current_waypoint_idx].location
+        
+        if self.num_ticks % 5 == 0:
+            print(
+                f"- Target waypoint: ({currentWaypoint[0]:.2f}, {currentWaypoint[1]:.2f}) \n\
+Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
+Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n")
+
+            print(
+                f"--- Speed: {current_speed_kmh:.2f} kph \n\
+Throttle: {throttle:.3f} \n\
+Brake: {brake:.3f} \n\
+Steer: {steer_control:.10f} \n\
+Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
+            ) 
 
         await self.vehicle.apply_action(control)
         return control
+
+    def get_lookahead_value(self, speed):
+        """
+        Returns the number of waypoints to look ahead based on the speed the car is currently going
+        """
+        speed_to_lookahead_dict = {
+            90: 8,
+            110: 11,
+            130: 12,
+            160: 16,
+            180: 20,
+            200: 25,
+            250: 28,
+            300: 32
+        }
+        
+        for speed_upper_bound, num_points in speed_to_lookahead_dict.items():
+            if speed < speed_upper_bound:
+              return num_points
+
+    def get_lookahead_index(self, speed):
+        """
+        Adds the lookahead waypoint to the current waypoint and normalizes it so that the value does not go out of bounds
+        """
+        num_waypoints = self.get_lookahead_value(speed)
+        # print("speed " + str(speed) 
+        #       + " cur_ind " + str(self.current_waypoint_idx) 
+        #       + " num_points " + str(num_waypoints) 
+        #       + " index " + str((self.current_waypoint_idx + num_waypoints) % len(self.maneuverable_waypoints)) )
+        return (self.current_waypoint_idx + num_waypoints) % len(self.maneuverable_waypoints)
+    
+    def get_lateral_pid_config(self):
+        """
+        Returns the PID values for the lateral (steering) PID
+        """
+        with open(f"{os.path.dirname(__file__)}\\configs\\LatPIDConfig.json", "r") as file:
+            config = json.load(file)
+        return config
+
+    # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py
+    def next_waypoint_smooth(self, current_speed: float):
+        """
+        If the speed is higher than 70, 'smooth out' the path that the car will take
+        """
+        if current_speed > 70 and current_speed < 300:
+            target_waypoint = self.average_point(current_speed)
+        else:
+            new_waypoint_index = self.get_lookahead_index(current_speed)
+            target_waypoint = self.maneuverable_waypoints[new_waypoint_index]
+            
+        return target_waypoint
+
+    def average_point(self, current_speed):
+        """
+        Returns a new averaged waypoint based on the location of a number of other waypoints
+        """
+        next_waypoint_index = self.get_lookahead_index(current_speed)
+        lookahead_value = self.get_lookahead_value(current_speed)
+                
+        # Section specific tuning
+        if self.current_section in [4]:
+            num_points = lookahead_value * 2 - 10 # Increase to cut corners more, decrease to go wider
+        elif self.current_section in [6, 7]:
+            num_points = lookahead_value * 2
+            next_waypoint_index = self.current_waypoint_idx + 10
+        elif self.current_section in [8, 9]:
+            num_points = lookahead_value // 2
+        else: 
+            num_points = lookahead_value * 2
+
+        start_index_for_avg = (next_waypoint_index - (num_points // 2)) % len(self.maneuverable_waypoints)
+
+        next_waypoint = self.maneuverable_waypoints[next_waypoint_index]
+        next_location = next_waypoint.location
+  
+        sample_points = [(start_index_for_avg + i) % len(self.maneuverable_waypoints) for i in range(0, num_points)]
+        if num_points > 3:
+            location_sum = reduce(lambda x, y: x + y,
+                                  (self.maneuverable_waypoints[i].location for i in sample_points))
+            num_points = len(sample_points)
+            new_location = location_sum / num_points
+            shift_distance = np.linalg.norm(next_location - new_location)
+            max_shift_distance = 2.0
+            if self.current_section == 1:
+                max_shift_distance = 0.2
+            if shift_distance > max_shift_distance:
+                uv = (new_location - next_location) / shift_distance
+                new_location = next_location + uv*max_shift_distance
+
+            target_waypoint = roar_py_interface.RoarPyWaypoint(location=new_location, 
+                                                               roll_pitch_yaw=np.ndarray([0, 0, 0]), 
+                                                               lane_width=0.0)
+            # if next_waypoint_index > 1900 and next_waypoint_index < 2300:
+            #   print("AVG: next_ind:" + str(next_waypoint_index) + " next_loc: " + str(next_location) 
+            #       + " new_loc: " + str(new_location) + " shift:" + str(shift_distance)
+            #       + " num_points: " + str(num_points) + " start_ind:" + str(start_index_for_avg)
+            #       + " curr_speed: " + str(current_speed))
+
+        else:
+            target_waypoint = self.maneuverable_waypoints[next_waypoint_index]
+
+        return target_waypoint
