@@ -132,19 +132,19 @@ class RoarCompetitionSolution:
 
         currentWaypoint = self.maneuverable_waypoints[self.current_waypoint_idx].location
         
-        if self.num_ticks % 5 == 0:
-            print(
-                f"- Target waypoint: ({currentWaypoint[0]:.2f}, {currentWaypoint[1]:.2f}) \n\
-Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
-Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n")
+#         if self.num_ticks % 5 == 0:
+#             print(
+#                 f"- Target waypoint: ({currentWaypoint[0]:.2f}, {currentWaypoint[1]:.2f}) \n\
+# Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
+# Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n")
 
-            print(
-                f"--- Speed: {current_speed_kmh:.2f} kph \n\
-Throttle: {throttle:.3f} \n\
-Brake: {brake:.3f} \n\
-Steer: {steer_control:.10f} \n\
-Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
-            ) 
+#             print(
+#                 f"--- Speed: {current_speed_kmh:.2f} kph \n\
+# Throttle: {throttle:.3f} \n\
+# Brake: {brake:.3f} \n\
+# Steer: {steer_control:.10f} \n\
+# Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
+#             ) 
 
         await self.vehicle.apply_action(control)
         return control
