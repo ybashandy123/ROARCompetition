@@ -61,7 +61,7 @@ class RoarCompetitionSolution:
         # FIXME check to make sure that forcing your own waypoints here is actually legal. If not, move it to somewhere that is legal
         self.maneuverable_waypoints = (
             roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-                np.load("competition_code\\waypoints\\modifiedWaypoints6.npz")
+                np.load("competition_code\\waypoints\\waypoints10.npz")
             )
         )
         num_sections = len(self.maneuverable_waypoints) // 50
@@ -136,7 +136,7 @@ class RoarCompetitionSolution:
         if self.current_section in [27, 28]:
             steerMultiplier = 1.4
         elif self.current_section in range(36, 43, 1):
-            steerMultiplier = 3.25
+            steerMultiplier = 5.5
         elif self.current_section in [52, 53]:
             steerMultiplier = 1.85
 
@@ -252,7 +252,7 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
             num_points = lookahead_value
         elif self.current_section in [28]:
             num_points = lookahead_value * 2
-            next_waypoint_index += 4
+            # next_waypoint_index += 4
         elif self.current_section in range(36, 43, 1):
             num_points = 20
             next_waypoint_index = self.current_waypoint_idx + 20
