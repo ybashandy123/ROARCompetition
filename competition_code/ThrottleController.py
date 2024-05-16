@@ -35,7 +35,8 @@ class ThrottleController:
     def run(self, waypoints, current_location, current_speed, current_section) -> (float, float, int):
         self.tick_counter += 1
         throttle, brake = self.get_throttle_and_brake(current_location, current_speed, current_section, waypoints)
-        gear = max(1, (int)(current_speed ** 1.15 / 100))
+        gear = max(1, (int)(current_speed ** 1.15 / 96))
+        # gear = max(1, int(current_speed / 60))
         if throttle == -1:
             gear = -1
 
