@@ -136,8 +136,8 @@ async def evaluate_solution(
         # np.array([-2.0 * vehicle.bounding_box.extent[0], 0.0, 3.0 * vehicle.bounding_box.extent[2]]), # relative position
         np.array([-12.0 * vehicle.bounding_box.extent[0], 0.0, 18.0 * vehicle.bounding_box.extent[2]]), # relative position
         np.array([0, 10/180.0*np.pi, 0]), # relative rotation
-        image_width=1024,
-        image_height=768
+        image_width=1280,
+        image_height=720
     )
     location_sensor = vehicle.attach_location_in_world_sensor()
     velocity_sensor = vehicle.attach_velocimeter_sensor()
