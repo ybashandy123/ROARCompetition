@@ -58,11 +58,10 @@ class RoarCompetitionSolution:
         self.current_section = -1
 
     async def initialize(self) -> None:
-        # FIXME check to make sure that forcing your own waypoints here is actually legal. If not, move it to somewhere that is legal
-        self.maneuverable_waypoints = (
-            roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-                np.load("competition_code\\waypoints\\waypoints10.npz")
-            )
+        # If running the simulation through Anaconda, use the bottom load path. If using VS Code, use the top load line
+        self.maneuverable_waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
+            # np.load("competition_code\\waypoints\\waypoints10.npz")
+            np.load("waypoints\\waypoints10.npz")
         )
         num_sections = len(self.maneuverable_waypoints) // 50
         indexes_per_section = len(self.maneuverable_waypoints) // num_sections
@@ -131,7 +130,7 @@ class RoarCompetitionSolution:
             current_speed_kmh,
             self.current_section,
         )
-        
+
         steerMultiplier = 1.1
         if self.current_section in [27, 28]:
             steerMultiplier = 1.4
@@ -170,8 +169,6 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
 
         await self.vehicle.apply_action(control)
         return control
-    
-
 
     def get_lookahead_value(self, speed):
         """
@@ -187,7 +184,7 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
             250: 30,
             300: 35,
         }
-        
+
         # Interpolation method
         # Note: does not work as well as the dictionary lookahead method.
         # speedBoundList = [0, 90, 110, 130, 160, 180, 200, 250, 300]
