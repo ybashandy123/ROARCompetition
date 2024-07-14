@@ -41,9 +41,9 @@ class ThrottleController:
         throttle, brake = self.get_throttle_and_brake(
             current_location, current_speed, current_section, waypoints
         )
-        gear = max(1, (int)(current_speed**1.15 / 96))
-        # gear = max(1, int(current_speed / 60))
-        if throttle == -1:
+        # gear = max(1, (int)(math.log(current_speed + 0.00001, 5)))
+        gear = max(1, int(current_speed / 60))
+        if throttle < 0:
             gear = -1
 
         # self.dprint("--- " + str(throttle) + " " + str(brake)

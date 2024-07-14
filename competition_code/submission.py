@@ -13,9 +13,7 @@ import numpy as np
 import roar_py_interface
 from LateralController import LatController
 from ThrottleController import ThrottleController
-
-# from scipy.interpolate import interp1d
-
+from scipy.interpolate import interp1d
 
 def filter_waypoints(
     location: np.ndarray,
@@ -167,6 +165,7 @@ Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2
 Throttle: {throttle:.3f} \n\
 Brake: {brake:.3f} \n\
 Steer: {steer_control:.10f} \n\
+Gear: {gear} \n\
 Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
             )
 
@@ -192,7 +191,7 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         # NOTE does not work as well as the dictionary lookahead method, likely to cause crashes.
 
         # speedBoundList = [0, 90, 110, 130, 160, 180, 200, 250, 300]
-        # lookaheadList = [3, 8, 11, 13, 18, 22, 25, 28, 32]
+        # lookaheadList = [5, 11, 13, 15, 18, 22, 25, 28, 32]
 
         # interpolationFunction = interp1d(speedBoundList, lookaheadList)
         # return int(interpolationFunction(speed))

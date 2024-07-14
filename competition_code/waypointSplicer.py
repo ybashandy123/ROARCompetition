@@ -17,70 +17,59 @@ replacementWaypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
 
 newWaypoints = []
 
+plt.show()
+plt.ion()    
+plt.figure(figsize=(24, 13.5))
+plt.axis((-1150, 1150, -1150, 1150))
 
 def drawWaypoints(waypoints, additionalWaypoints=baseWaypoints[:1]):
-    plt.figure(figsize=(24, 13.5))
-
     for i in waypoints:
         plt.plot(i.location[0], i.location[1], "ro")
 
     for i in additionalWaypoints:
         plt.plot(i.location[0], i.location[1], "g^")
 
-    plt.axis((-1150, 1150, -1150, 1150))
     plt.connect("button_press_event", on_click)
-    plt.show()
-
 
 def distanceToWaypoint(currentLoc, waypoint: roar_py_interface.RoarPyWaypoint):
     return np.linalg.norm(currentLoc[:2] - waypoint.location[:2])
 
 
-def findCurrentIndex(currentLoc, waypoints: List[roar_py_interface.RoarPyWaypoint]):
+def findClosestIndex(currentLoc, waypoints: List[roar_py_interface.RoarPyWaypoint]):
+    lowestDist = 100
+    closestInd = 0
     for i in range(0, len(waypoints)):
-        if distanceToWaypoint(currentLoc, waypoints[i % len(waypoints)]) < 3:
-            return i % len(waypoints)
-    return 0
+        dist = distanceToWaypoint(currentLoc, waypoints[i % len(waypoints)])
+        if dist < lowestDist:
+            lowestDist = dist
+            closestInd = i
+    return closestInd % len(waypoints)
+    # return 0
 
 
 def on_click(event):
     if event.button is MouseButton.LEFT:
         if len(baseSection) < 2:
+            loc = [event.xdata, event.ydata]
             baseSection.append(
-                findCurrentIndex([event.xdata, event.ydata], replacementWaypoints)
-            )
+                findClosestIndex(loc, baseWaypoints))
+            replacementSection.append(findClosestIndex(loc, replacementWaypoints))
             print(
-                f"Plotting source waypoint {len(baseSection)} at ({event.xdata}, {event.ydata})"
+                f"Plotting section waypoint {len(baseSection)} at ({loc[0]:.2f}, {loc[1]:.2f})"
             )
             plt.plot(event.xdata, event.ydata, "bs")
+            plt.draw()
         else:
             plt.close()
-            for i in range(len(baseSection)):
-                print(f"Finding closest waypoint {i + 1}")
-                currentLoc = baseWaypoints[baseSection[i]]
-                closestWaypoint = replacementWaypoints[0]
-                lowestDistance = distanceToWaypoint(
-                    currentLoc.location, replacementWaypoints[0]
-                )
-                for j in replacementWaypoints:
-                    currentDist = distanceToWaypoint(currentLoc.location, j)
-                    if currentDist < lowestDistance:
-                        closestWaypoint = j
-                        lowestDistance = currentDist
-                replacementSection.append(
-                    findCurrentIndex(closestWaypoint.location, replacementWaypoints)
-                )
-                print(
-                    f"Target waypoint {i + 1} found at {closestWaypoint.location}, {lowestDistance} units away"
-                )
 
-            print(
-                f"Source Waypoints: {len(baseSection)}\nTarget Waypoints: {len(replacementSection)}"
-            )
-
+print("\n--- Generating Waypoint Map ---\n")
 
 drawWaypoints(baseWaypoints)
 
+while len(replacementSection) < 2:
+    plt.pause(0.01)
+print(f"Base waypoint indexes: {baseSection}")
+print(f"New waypoint indexes: {replacementSection}")
 for i in range(baseSection[0]):
     newWaypoints.append(baseWaypoints[i])
 
