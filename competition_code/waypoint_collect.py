@@ -63,10 +63,12 @@ class ManualControlViewer:
                 return None
 
         pressed_keys = pygame.key.get_pressed()
-        # if pressed_keys[pygame.K_UP]:
-        #     new_control['throttle'] = 0.4
+        new_control["throttle"] = 0.45
+        if pressed_keys[pygame.K_UP]:
+            new_control['throttle'] = 0.7
         if pressed_keys[pygame.K_DOWN]:
-            new_control["brake"] = 0.2
+            new_control["reverse"] = 1
+            new_control["throttle"] = 0
         if pressed_keys[pygame.K_LEFT]:
             new_control["steer"] = -0.2
         if pressed_keys[pygame.K_RIGHT]:
@@ -75,7 +77,8 @@ class ManualControlViewer:
             new_control["steer"] = -0.05
         if pressed_keys[pygame.K_d]:
             new_control["steer"] = 0.05
-        new_control["throttle"] = 0.45
+        if pressed_keys[pygame.K_s]:
+            new_control["steer"] = 0.05
 
         image_surface = pygame.image.fromstring(
             image_pil.tobytes(), image_pil.size, image_pil.mode
@@ -110,8 +113,10 @@ async def main():
     # spawn_point, spawn_rpy = carla_world.spawn_points[
     #     np.random.randint(len(carla_world.spawn_points))
     # ]
+    
+    spawnPointNum = int(input("Choose a spawn point number (0 - 4): "))
 
-    spawn_point, spawn_rpy = carla_world.spawn_points[0]
+    spawn_point, spawn_rpy = carla_world.spawn_points[spawnPointNum]
 
     print("Spawning vehicle at", spawn_point, spawn_rpy)
 

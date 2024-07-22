@@ -8,11 +8,11 @@ baseSection = []
 replacementSection = []
 findTarget = False
 baseWaypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-    np.load("competition_code\\waypoints\\waypoints10.npz")
+    np.load("competition_code\\waypoints\\waypointsPrimary.npz")
 )
 
 replacementWaypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-    np.load("competition_code\\waypoints\\waypoints5.npz")
+    np.load("competition_code\\waypoints\\waypoints.npz")
 )
 
 newWaypoints = []

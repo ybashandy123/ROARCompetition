@@ -13,7 +13,7 @@ import numpy as np
 import roar_py_interface
 from LateralController import LatController
 from ThrottleController import ThrottleController
-from scipy.interpolate import interp1d
+# from scipy.interpolate import interp1d
 
 def filter_waypoints(
     location: np.ndarray,
@@ -60,7 +60,7 @@ class RoarCompetitionSolution:
         # NOTE waypoints are changed through this line
         self.maneuverable_waypoints = (
             roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-                np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypoints10.npz")
+                np.load(f"{os.path.dirname(__file__)}\\waypoints\\modifiedWaypoints.npz")
             )
         )
         num_sections = len(self.maneuverable_waypoints) // 50
@@ -122,7 +122,7 @@ class RoarCompetitionSolution:
 
         # Proportional controller to control the vehicle's speed
         waypoints_for_throttle = (self.maneuverable_waypoints * 2)[
-            new_waypoint_index : new_waypoint_index + 560
+            new_waypoint_index : new_waypoint_index + 500
         ]
         throttle, brake, gear = self.throttle_controller.run(
             waypoints_for_throttle,
@@ -136,7 +136,7 @@ class RoarCompetitionSolution:
             steerMultiplier = 1.4
         elif self.current_section in range(36, 43, 1):
             steerMultiplier = 5.5
-        elif self.current_section in [52, 53]:
+        elif self.current_section in [50, 52]:
             steerMultiplier = 1.85
 
         control = {
@@ -153,21 +153,21 @@ class RoarCompetitionSolution:
         ].location
 
         # NOTE uncomment for debug printing
-        if self.num_ticks % 5 == 0:
-            print(
-                f"- Target waypoint: ({currentWaypoint[0]:.2f}, {currentWaypoint[1]:.2f}) \n\
-Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
-Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n"
-            )
+#         if self.num_ticks % 5 == 0:
+#             print(
+#                 f"- Target waypoint: ({currentWaypoint[0]:.2f}, {currentWaypoint[1]:.2f}) \n\
+# Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
+# Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n"
+#             )
 
-            print(
-                f"--- Speed: {current_speed_kmh:.2f} kph \n\
-Throttle: {throttle:.3f} \n\
-Brake: {brake:.3f} \n\
-Steer: {steer_control:.10f} \n\
-Gear: {gear} \n\
-Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
-            )
+#             print(
+#                 f"--- Speed: {current_speed_kmh:.2f} kph \n\
+# Throttle: {throttle:.3f} \n\
+# Brake: {brake:.3f} \n\
+# Steer: {steer_control:.10f} \n\
+# Gear: {gear} \n\
+# Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
+#             )
 
         await self.vehicle.apply_action(control)
         return control
@@ -250,12 +250,10 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
             num_points = lookahead_value * 3
         elif self.current_section in [25, 27]:
             num_points = lookahead_value
-        elif self.current_section in [28]:
-            num_points = lookahead_value * 2
-        elif self.current_section in range(36, 43, 1):
+        elif self.current_section in range(36, 43):
             num_points = 20
             next_waypoint_index = self.current_waypoint_idx + 20
-        elif self.current_section in [51, 52, 53]:
+        elif self.current_section in range(50, 53):
             num_points = lookahead_value * 3 // 5
         else:
             num_points = lookahead_value * 2

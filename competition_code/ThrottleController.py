@@ -127,7 +127,7 @@ class ThrottleController:
         #             + " ts= " + str(round(speed_data.target_speed_at_distance, 2))
         #             + " maxs= " + str(round(speed_data.recommended_speed_now, 2)) + " pcnt= " + str(round(percent_of_max, 2)))
 
-        percent_change_per_tick = 0.07  # speed drop for one time-tick of braking
+        percent_change_per_tick = 0.075  # speed drop for one time-tick of braking
         speed_up_threshold = 0.9
         throttle_decrease_multiple = 0.7
         throttle_increase_multiple = 1.25
@@ -365,12 +365,10 @@ class ThrottleController:
         if radius >= self.max_radius:
             return self.max_speed
         mu = 2.0
-        if current_section == 6:
+        if current_section in range(35, 40):
+            mu = 2.1
+        if current_section in range(45, 52):
             mu = 1.2
-        if current_section == 7:
-            mu = 1.7
-        if current_section == 9:
-            mu = 1.85
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
         return max(
             20, min(target_speed, self.max_speed)
