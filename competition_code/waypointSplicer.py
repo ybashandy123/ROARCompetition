@@ -12,7 +12,7 @@ baseWaypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
 )
 
 replacementWaypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-    np.load("competition_code\\waypoints\\waypoints.npz")
+    np.load("competition_code\\waypoints\\oldWaypointsPrimary.npz")
 )
 
 newWaypoints = []

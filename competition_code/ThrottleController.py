@@ -372,12 +372,14 @@ class ThrottleController:
         if radius >= self.max_radius:
             return self.max_speed
         
-        if current_section in range(25, 27):
-            mu = 1.9
-        if current_section in range(35, 40):
+        if current_section == 1:
+            mu = 2
+        if current_section == 3:
+            mu = 2
+        if current_section == 6:
             mu = 2.3
-        if current_section in range(45, 52):
-            mu = 1.3
+        if current_section == 8:
+            mu = 1.35
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
 

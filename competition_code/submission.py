@@ -15,19 +15,28 @@ from LateralController import LatController
 from ThrottleController import ThrottleController
 # from scipy.interpolate import interp1d
 
+def dist_to_waypoint(location, waypoint: roar_py_interface.RoarPyWaypoint):
+        return np.linalg.norm(location[:2] - waypoint.location[:2])
+
 def filter_waypoints(
     location: np.ndarray,
     current_idx: int,
     waypoints: List[roar_py_interface.RoarPyWaypoint],
 ) -> int:
-    def dist_to_waypoint(waypoint: roar_py_interface.RoarPyWaypoint):
-        return np.linalg.norm(location[:2] - waypoint.location[:2])
-
     for i in range(current_idx, len(waypoints) + current_idx):
-        if dist_to_waypoint(waypoints[i % len(waypoints)]) < 3:
+        if dist_to_waypoint(location, waypoints[i % len(waypoints)]) < 3:
             return i % len(waypoints)
     return current_idx
 
+def findClosestIndex(location, waypoints: List[roar_py_interface.RoarPyWaypoint]):
+    lowestDist = 100
+    closestInd = 0
+    for i in range(0, len(waypoints)):
+        dist = dist_to_waypoint(location, waypoints[i % len(waypoints)])
+        if dist < lowestDist:
+            lowestDist = dist
+            closestInd = i
+    return closestInd % len(waypoints)
 
 class RoarCompetitionSolution:
     def __init__(
@@ -63,9 +72,13 @@ class RoarCompetitionSolution:
                 np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypointsPrimary.npz")
             )
         )
-        num_sections = len(self.maneuverable_waypoints) // 50
-        indexes_per_section = len(self.maneuverable_waypoints) // num_sections
-        self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
+        # num_sections = len(self.maneuverable_waypoints) // 50
+        # indexes_per_section = len(self.maneuverable_waypoints) // num_sections
+        # self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
+        sectionLocations = [[-283.8, 392], [64, 890], [511, 1037], [762, 908], [198, 307], [-12, 38], [-85, -339], [-218, -1062], [-352, -119]]
+        for i in sectionLocations:
+            self.section_indeces.append(findClosestIndex(i, self.maneuverable_waypoints))
+        
         print(f"True total length: {len(self.maneuverable_waypoints) * 3}")
         print(f"1 lap length: {len(self.maneuverable_waypoints)}")
         print(f"Section indexes: {self.section_indeces}")
@@ -106,6 +119,7 @@ class RoarCompetitionSolution:
                 section_ind - 2 <= self.current_waypoint_idx
                 and self.current_waypoint_idx <= section_ind + 2
                 and i != self.current_section
+                and self.num_ticks > 20
             ):
                 elapsed_ticks = self.num_ticks - self.section_start_ticks
                 self.section_start_ticks = self.num_ticks
@@ -132,12 +146,14 @@ class RoarCompetitionSolution:
         )
 
         steerMultiplier = 1.1
-        if self.current_section in [27, 28]:
+        if self.current_section == 4:
+            steerMultiplier = 1
+        elif self.current_section == 5:
             steerMultiplier = 1.4
-        elif self.current_section in range(36, 43):
-            steerMultiplier = 5.25
-        elif self.current_section in range(50, 53):
-            steerMultiplier = 1.85
+        elif self.current_section == 6:
+            steerMultiplier = 4.9
+        elif self.current_section == 8:
+            steerMultiplier = 2.25
 
         control = {
             "throttle": np.clip(throttle, 0, 1),
@@ -165,7 +181,6 @@ class RoarCompetitionSolution:
 # Throttle: {throttle:.3f} \n\
 # Brake: {brake:.3f} \n\
 # Steer: {steer_control:.10f} \n\
-# Gear: {gear} \n\
 # Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
 #             )
 
@@ -213,15 +228,15 @@ class RoarCompetitionSolution:
             self.maneuverable_waypoints
         )
 
-    def get_lateral_pid_config(self):
-        """
-        Returns the PID values for the lateral (steering) PID
-        """
-        with open(
-            f"{os.path.dirname(__file__)}\\configs\\LatPIDConfig.json", "r"
-        ) as file:
-            config = json.load(file)
-        return config
+    # def get_lateral_pid_config(self):
+    #     """
+    #     Returns the PID values for the lateral (steering) PID
+    #     """
+    #     with open(
+    #         f"{os.path.dirname(__file__)}\\configs\\LatPIDConfig.json", "r"
+    #     ) as file:
+    #         config = json.load(file)
+    #     return config
 
     # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py (2023 Summer)
     def next_waypoint_smooth(self, current_speed: float):
@@ -244,17 +259,17 @@ class RoarCompetitionSolution:
         lookahead_value = self.get_lookahead_value(current_speed)
 
         # Section specific tuning
-        if self.current_section in [9, 10]:
+        if self.current_section == 1:
             num_points = lookahead_value // 2
         # elif self.current_section in [13, 14]:
         #     num_points = lookahead_value * 3
-        elif self.current_section in [25, 27]:
+        elif self.current_section in [4, 5]:
             num_points = lookahead_value
-        elif self.current_section in range(36, 43):
-            num_points = 10
+        elif self.current_section == 6:
+            num_points = 7
             next_waypoint_index = self.current_waypoint_idx + 22
-        elif self.current_section in range(50, 53):
-            num_points = lookahead_value * 3 // 5
+        elif self.current_section == 8:
+            num_points = 3
         else:
             num_points = lookahead_value * 2
 
