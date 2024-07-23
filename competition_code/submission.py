@@ -60,7 +60,7 @@ class RoarCompetitionSolution:
         # NOTE waypoints are changed through this line
         self.maneuverable_waypoints = (
             roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-                np.load(f"{os.path.dirname(__file__)}\\waypoints\\modifiedWaypoints.npz")
+                np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypointsPrimary.npz")
             )
         )
         num_sections = len(self.maneuverable_waypoints) // 50
@@ -134,9 +134,9 @@ class RoarCompetitionSolution:
         steerMultiplier = 1.1
         if self.current_section in [27, 28]:
             steerMultiplier = 1.4
-        elif self.current_section in range(36, 43, 1):
-            steerMultiplier = 5.5
-        elif self.current_section in [50, 52]:
+        elif self.current_section in range(36, 43):
+            steerMultiplier = 5.25
+        elif self.current_section in range(50, 53):
             steerMultiplier = 1.85
 
         control = {
@@ -145,7 +145,7 @@ class RoarCompetitionSolution:
             "brake": np.clip(brake, 0, 1),
             "hand_brake": 0,
             "reverse": 0,
-            "target_gear": gear,
+            "target_gear": gear,  # Gears do not appear to have a significant impact on speed
         }
 
         currentWaypoint = self.maneuverable_waypoints[
@@ -223,7 +223,7 @@ class RoarCompetitionSolution:
             config = json.load(file)
         return config
 
-    # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py
+    # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py (2023 Summer)
     def next_waypoint_smooth(self, current_speed: float):
         """
         If the speed is higher than 70, 'smooth out' the path that the car will take
@@ -246,13 +246,13 @@ class RoarCompetitionSolution:
         # Section specific tuning
         if self.current_section in [9, 10]:
             num_points = lookahead_value // 2
-        elif self.current_section in [13, 14]:
-            num_points = lookahead_value * 3
+        # elif self.current_section in [13, 14]:
+        #     num_points = lookahead_value * 3
         elif self.current_section in [25, 27]:
             num_points = lookahead_value
         elif self.current_section in range(36, 43):
-            num_points = 20
-            next_waypoint_index = self.current_waypoint_idx + 20
+            num_points = 10
+            next_waypoint_index = self.current_waypoint_idx + 22
         elif self.current_section in range(50, 53):
             num_points = lookahead_value * 3 // 5
         else:

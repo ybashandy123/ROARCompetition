@@ -343,7 +343,9 @@ class ThrottleController:
         len_side_1 = round(math.dist(point1, point2), 3)
         len_side_2 = round(math.dist(point2, point3), 3)
         len_side_3 = round(math.dist(point1, point3), 3)
+
         small_num = 0.01
+
         if len_side_1 < small_num or len_side_2 < small_num or len_side_3 < small_num:
             return self.max_radius
 
@@ -354,22 +356,31 @@ class ThrottleController:
         area_squared = sp * (sp - len_side_1) * (sp - len_side_2) * (sp - len_side_3)
         if area_squared < small_num:
             return self.max_radius
+        
         # Calculating curvature using Menger curvature formula
         radius = (len_side_1 * len_side_2 * len_side_3) / (4 * math.sqrt(area_squared))
+        
         return radius
 
     def get_target_speed(self, radius: float, current_section):
         """
         Returns a target speed based off of the radius of the turn
         """
+
+        mu = 2.1
+
         if radius >= self.max_radius:
             return self.max_speed
-        mu = 2.0
+        
+        if current_section in range(25, 27):
+            mu = 1.9
         if current_section in range(35, 40):
-            mu = 2.1
+            mu = 2.3
         if current_section in range(45, 52):
-            mu = 1.2
+            mu = 1.3
+
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
+
         return max(
             20, min(target_speed, self.max_speed)
         )  # clamp between 20 and max_speed
