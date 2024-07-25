@@ -13,7 +13,11 @@ import numpy as np
 import roar_py_interface
 from LateralController import LatController
 from ThrottleController import ThrottleController
+import atexit
 # from scipy.interpolate import interp1d
+
+useDebug = True
+debugData = {}
 
 def dist_to_waypoint(location, waypoint: roar_py_interface.RoarPyWaypoint):
         return np.linalg.norm(location[:2] - waypoint.location[:2])
@@ -37,6 +41,15 @@ def findClosestIndex(location, waypoints: List[roar_py_interface.RoarPyWaypoint]
             lowestDist = dist
             closestInd = i
     return closestInd % len(waypoints)
+
+@atexit.register
+def saveDebugData():
+    if useDebug:
+        print("Saving debug data")
+        jsonData = json.dumps(debugData, indent=4)
+        with open(f"{os.path.dirname(__file__)}\\debugData\\debugData.json", "w+") as outfile:
+            outfile.write(jsonData)
+        print("Debug Data Saved")
 
 class RoarCompetitionSolution:
     def __init__(
@@ -168,21 +181,27 @@ class RoarCompetitionSolution:
             self.current_waypoint_idx
         ].location
 
-        # NOTE uncomment for debug printing
-#         if self.num_ticks % 5 == 0:
-#             print(
-#                 f"- Target waypoint: ({currentWaypoint[0]:.2f}, {currentWaypoint[1]:.2f}) \n\
-# Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
-# Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n"
-#             )
-
-#             print(
-#                 f"--- Speed: {current_speed_kmh:.2f} kph \n\
-# Throttle: {throttle:.3f} \n\
-# Brake: {brake:.3f} \n\
-# Steer: {steer_control:.10f} \n\
-# Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
-#             )
+        if useDebug:
+            debugData[self.num_ticks] = {}
+            debugData[self.num_ticks]["loc"] = [round(currentWaypoint[0], 3), round(currentWaypoint[1], 3)]
+            debugData[self.num_ticks]["throttle"] = round(float(control["throttle"]), 3)
+            debugData[self.num_ticks]["brake"] = round(float(control["brake"]), 3)
+            debugData[self.num_ticks]["steer"] = round(float(control["steer"]), 10)
+            debugData[self.num_ticks]["speed"] = round(current_speed_kmh, 3)
+            
+            if self.num_ticks % 5 == 0:
+                print(
+                    f"- Target waypoint: ({currentWaypoint[0]:.2f}, {currentWaypoint[1]:.2f}) \n\
+Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
+Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n"
+                )
+                print(
+                    f"--- Speed: {current_speed_kmh:.2f} kph \n\
+Throttle: {throttle:.3f} \n\
+Brake: {brake:.3f} \n\
+Steer: {steer_control:.10f} \n\
+Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
+                )
 
         await self.vehicle.apply_action(control)
         return control
