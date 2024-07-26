@@ -19,7 +19,7 @@ newWaypoints = []
 
 plt.show()
 plt.ion()    
-plt.figure(figsize=(24, 13.5))
+plt.figure(figsize=(14, 14))
 plt.axis((-1150, 1150, -1150, 1150))
 
 def drawWaypoints(waypoints, additionalWaypoints=baseWaypoints[:1]):

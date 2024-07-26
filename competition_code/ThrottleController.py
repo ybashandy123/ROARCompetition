@@ -344,7 +344,7 @@ class ThrottleController:
         len_side_2 = round(math.dist(point2, point3), 3)
         len_side_3 = round(math.dist(point1, point3), 3)
 
-        small_num = 0.01
+        small_num = 1
 
         if len_side_1 < small_num or len_side_2 < small_num or len_side_3 < small_num:
             return self.max_radius
@@ -367,19 +367,23 @@ class ThrottleController:
         Returns a target speed based off of the radius of the turn
         """
 
-        mu = 2.1
+        mu = 2.15
 
         if radius >= self.max_radius:
             return self.max_speed
         
         if current_section == 1:
             mu = 2
-        if current_section == 3:
+        if current_section in [2, 3]:
+            mu = 2.4
+        if current_section == 4:
+            mu = 2.05
+        if current_section in [6]:
             mu = 2
-        if current_section == 6:
+        if current_section == 7:
             mu = 2.3
         if current_section == 8:
-            mu = 1.35
+            mu = 1.4
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
 

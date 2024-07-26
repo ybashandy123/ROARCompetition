@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import roar_py_interface
 from typing import List
@@ -11,11 +12,11 @@ data = json.load(open(f"{os.path.dirname(__file__)}\\debugData\\debugData.json")
 def distanceToWaypoint(currentWaypoint, firstWaypoint):
     return np.linalg.norm(currentWaypoint[:2] - firstWaypoint[:2])
 
-plt.figure(figsize=(24, 13.5))
+plt.figure(figsize=(14, 14))
 plt.axis((-1150, 1150, -1150, 1150))
 
 for i in data:
-    if int(i) == 0 or int(i) > 1000:
+    if int(i) == 0 or int(i) >= 1500:
         color = (0, 0, 0)
         brakeVal = data[i]["brake"]
         throttleVal = data[i]["throttle"]
@@ -24,9 +25,11 @@ for i in data:
             color = (brakeVal, 0, 0)
         else:
             color = (0, throttleVal, 0)
-            
-        print(f"Plotting point {i} with color {color} at ({data[i]['loc'][0]}, {data[i]['loc'][1]})")
         
+        if int(i) % 100 == 0:
+            print(f"Plotting point {i}")
+            
         plt.plot(data[i]["loc"][0], data[i]["loc"][1], "o", color=color)
 
+print("\n--- Plot complete ---\n")
 plt.show()
