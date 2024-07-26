@@ -300,7 +300,7 @@ class ThrottleController:
 
     def get_next_interesting_waypoints(self, current_location, more_waypoints):
         """
-        Takes the current location of the car and returns a new list of waypoints that are close to the car
+        Returns a list of waypoints that are approximately as far as the given in intended_target_distance from the current location
         """
         # return a list of points with distances approximately as given
         # in intended_target_distance[] from the current location.
@@ -356,10 +356,10 @@ class ThrottleController:
         area_squared = sp * (sp - len_side_1) * (sp - len_side_2) * (sp - len_side_3)
         if area_squared < small_num:
             return self.max_radius
-        
+
         # Calculating curvature using Menger curvature formula
         radius = (len_side_1 * len_side_2 * len_side_3) / (4 * math.sqrt(area_squared))
-        
+
         return radius
 
     def get_target_speed(self, radius: float, current_section):
@@ -371,18 +371,20 @@ class ThrottleController:
 
         if radius >= self.max_radius:
             return self.max_speed
-        
+
         if current_section == 1:
             mu = 2
-        if current_section in [2, 3]:
-            mu = 2.4
+        if current_section == 2:
+            mu = 2.5
+        if current_section == 3:
+            mu = 2.6
         if current_section == 4:
             mu = 2.05
-        if current_section in [6]:
-            mu = 2
-        if current_section == 7:
+        # if current_section in [6]:
+        #     mu = 2
+        if current_section in [7, 8]:
             mu = 2.3
-        if current_section == 8:
+        if current_section == 9:
             mu = 1.4
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
