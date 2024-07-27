@@ -18,7 +18,7 @@ class ThrottleController:
     def __init__(self):
         self.max_radius = 10000
         self.max_speed = 300
-        self.intended_target_distance = [0, 30, 60, 90, 120, 150, 180]
+        self.intended_target_distance = [0, 30, 60, 90, 120, 140, 170]
         self.target_distance = [0, 30, 60, 90, 120, 150, 180]
         self.close_index = 0
         self.mid_index = 1
@@ -344,7 +344,7 @@ class ThrottleController:
         len_side_2 = round(math.dist(point2, point3), 3)
         len_side_3 = round(math.dist(point1, point3), 3)
 
-        small_num = 1
+        small_num = 2
 
         if len_side_1 < small_num or len_side_2 < small_num or len_side_3 < small_num:
             return self.max_radius

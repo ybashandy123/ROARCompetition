@@ -82,7 +82,7 @@ class RoarCompetitionSolution:
         # NOTE waypoints are changed through this line
         self.maneuverable_waypoints = (
             roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-                np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypointsPrimary.npz")
+                np.load(f"{os.path.dirname(__file__)}\\waypoints\\modifiedWaypoints.npz")
             )
         )
         # num_sections = len(self.maneuverable_waypoints) // 50
@@ -142,12 +142,12 @@ class RoarCompetitionSolution:
         new_waypoint_index = self.get_lookahead_index(current_speed_kmh)
         waypoint_to_follow = self.next_waypoint_smooth(current_speed_kmh)
 
-        # Proportional controller to steer the vehicle
+        # Pure pursuit controller to steer the vehicle
         steer_control = self.lat_controller.run(
             vehicle_location, vehicle_rotation, waypoint_to_follow
         )
 
-        # Proportional controller to control the vehicle's speed
+        # Custom controller to control the vehicle's speed
         waypoints_for_throttle = (self.maneuverable_waypoints * 2)[
             new_waypoint_index : new_waypoint_index + 300
         ]
@@ -166,7 +166,7 @@ class RoarCompetitionSolution:
         elif self.current_section == 6:
             steerMultiplier = 5
         elif self.current_section == 9:
-            steerMultiplier = 2.075
+            steerMultiplier = 2.125
 
         control = {
             "throttle": np.clip(throttle, 0, 1),
@@ -258,7 +258,7 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
     #         config = json.load(file)
     #     return config
 
-    # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py (2023 Summer)
+    # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py (Summer 2023)
     def next_waypoint_smooth(self, current_speed: float):
         """
         If the speed is higher than 70, 'smooth out' the path that the car will take
@@ -280,16 +280,16 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
 
         # Section specific tuning
         if self.current_section == 1:
-            num_points = lookahead_value // 2
+            num_points = round(lookahead_value / 2)
         elif self.current_section in [4, 5]:
-            num_points = lookahead_value
+            num_points = lookahead_value + 2
         elif self.current_section == 6:
             num_points = 7
             next_waypoint_index = self.current_waypoint_idx + 22
         elif self.current_section == 7:
             num_points = lookahead_value * 3
         elif self.current_section == 9:
-            num_points = 3
+            num_points = 4
         else:
             num_points = lookahead_value * 2
 
