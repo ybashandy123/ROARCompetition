@@ -82,7 +82,7 @@ class RoarCompetitionSolution:
         # NOTE waypoints are changed through this line
         self.maneuverable_waypoints = (
             roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-                np.load(f"{os.path.dirname(__file__)}\\waypoints\\modifiedWaypoints.npz")
+                np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypointsPrimary.npz")
             )
         )
         # num_sections = len(self.maneuverable_waypoints) // 50
@@ -164,7 +164,7 @@ class RoarCompetitionSolution:
         elif self.current_section == 5:
             steerMultiplier = 1.4
         elif self.current_section == 6:
-            steerMultiplier = 5
+            steerMultiplier = 5.425
         elif self.current_section == 9:
             steerMultiplier = 2.125
 
@@ -192,15 +192,14 @@ class RoarCompetitionSolution:
             if self.num_ticks % 5 == 0:
                 print(
                     f"- Target waypoint: ({waypoint_to_follow.location[0]:.2f}, {waypoint_to_follow.location[1]:.2f}) index {new_waypoint_index} \n\
-Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
-Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n"
+Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) index {self.current_waypoint_idx} section {self.current_section} \n\
+Distance to target waypoint: {math.sqrt((waypoint_to_follow.location[0] - vehicle_location[0]) ** 2 + (waypoint_to_follow.location[1] - vehicle_location[1]) ** 2):.3f}\n"
                 )
                 print(
                     f"--- Speed: {current_speed_kmh:.2f} kph \n\
-Throttle: {throttle:.3f} \n\
-Brake: {brake:.3f} \n\
-Steer: {steer_control:.10f} \n\
-Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
+Throttle: {control['throttle']:.3f} \n\
+Brake: {control['brake']:.3f} \n\
+Steer: {control['steer']:.10f} \n"
                 )
 
         await self.vehicle.apply_action(control)
@@ -284,7 +283,7 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         elif self.current_section in [4, 5]:
             num_points = lookahead_value + 2
         elif self.current_section == 6:
-            num_points = 7
+            num_points = 4
             next_waypoint_index = self.current_waypoint_idx + 22
         elif self.current_section == 7:
             num_points = lookahead_value * 3

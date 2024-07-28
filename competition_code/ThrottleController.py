@@ -380,10 +380,8 @@ class ThrottleController:
             mu = 2.6
         if current_section == 4:
             mu = 2.05
-        # if current_section in [6]:
-        #     mu = 2
-        if current_section in [7, 8]:
-            mu = 2.3
+        if current_section in [6, 7, 8]:
+            mu = 2.35
         if current_section == 9:
             mu = 1.4
 

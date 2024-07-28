@@ -251,10 +251,18 @@ if __name__ == "__main__":
         numRuns = int(input("Please enter the number of runs you would like to perform: "))
     except: 
         print("That is not a valid input")
+        
+    lapTimes = []
     lapTimeTotal = 0
     
     for i in range(numRuns):
         print(f"\nRun {i + 1}\n")
-        lapTimeTotal += asyncio.run(main())
+        lapTimes.append((asyncio.run(main())))
     
-    print(f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / numRuns, 3)} seconds\n")
+    for i in lapTimes:
+        lapTimeTotal += i
+    
+    print(f"Lap times:")
+    for i in range(len(lapTimes)):
+        print(f"Lap {i + 1}: {lapTimes[i]:.3f} seconds")
+    print(f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / numRuns, 3)} seconds")
