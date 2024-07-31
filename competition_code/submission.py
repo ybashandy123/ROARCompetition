@@ -158,16 +158,19 @@ class RoarCompetitionSolution:
             self.current_section,
         )
 
-        steerMultiplier = 1.1
+        steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
+        # if self.current_section == 4:
+        #     steerMultiplier = 1.15
+        # elif self.current_section == 5:
+        #     steerMultiplier = 1.4
+        if self.current_section == 3:
+            steerMultiplier *= 0.9
         if self.current_section == 4:
-            steerMultiplier = 1.15
-        elif self.current_section == 5:
-            steerMultiplier = 1.4
-        elif self.current_section == 6:
-            steerMultiplier = 5.425
-        elif self.current_section == 9:
-            steerMultiplier = 2.125
-
+            steerMultiplier = 1.2
+        if self.current_section in [6]:
+            steerMultiplier *= 4.4
+        if self.current_section == 9:
+            steerMultiplier = 2.075
         control = {
             "throttle": np.clip(throttle, 0, 1),
             "steer": np.clip(steer_control * steerMultiplier, -1, 1),
@@ -278,15 +281,17 @@ Steer: {control['steer']:.10f} \n"
         lookahead_value = self.get_lookahead_value(current_speed)
 
         # Section specific tuning
-        if self.current_section == 1:
+        if self.current_section in [0, 1]:
             num_points = round(lookahead_value / 2)
-        elif self.current_section in [4, 5]:
-            num_points = lookahead_value + 2
+        elif self.current_section == 4:
+            num_points = lookahead_value - 12
+        elif self.current_section == 5:
+            num_points = round(lookahead_value * 1.5)
         elif self.current_section == 6:
-            num_points = 4
-            next_waypoint_index = self.current_waypoint_idx + 22
+            num_points = 1
+            next_waypoint_index = self.current_waypoint_idx + 21
         elif self.current_section == 7:
-            num_points = lookahead_value * 3
+            num_points = round(lookahead_value * 1.4)
         elif self.current_section == 9:
             num_points = 4
         else:

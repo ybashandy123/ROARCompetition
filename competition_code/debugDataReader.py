@@ -12,8 +12,11 @@ data = json.load(open(f"{os.path.dirname(__file__)}\\debugData\\debugData.json")
 def distanceToWaypoint(currentWaypoint, firstWaypoint):
     return np.linalg.norm(currentWaypoint[:2] - firstWaypoint[:2])
 
-plt.figure(figsize=(14, 14))
-plt.axis((-1150, 1150, -1150, 1150))
+print("--- Generating Plot ---\n")
+
+plt.figure(figsize=(12, 12))
+plt.axis((-1100, 1100, -1100, 1100))
+plt.margins(x=0, y=0)
 
 for i in data:
     if int(i) == 0 or int(i) >= 1500:
@@ -32,4 +35,5 @@ for i in data:
         plt.plot(data[i]["loc"][0], data[i]["loc"][1], "o", color=color)
 
 print("\n--- Plot complete ---\n")
+plt.tight_layout()
 plt.show()

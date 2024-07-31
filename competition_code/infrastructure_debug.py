@@ -105,7 +105,7 @@ class ManualControlViewer:
         v = vehicle.get_linear_3d_velocity()
         return [
             "Location:% 20s" % ("(% 5.1f, % 5.1f)" % (location[0], location[1])),
-            "Speed:   % 15.0f km/h" % (3.6 * math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)),
+            "Speed:   % 15.2f km/h" % (3.6 * math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)),
         ]
 
     def show_info(self, string_list):

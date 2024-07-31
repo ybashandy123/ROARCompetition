@@ -138,8 +138,8 @@ class ThrottleController:
 
         if percent_of_max > 1:
             # Consider slowing down
-            if speed_data.current_speed > 200:  # Brake earlier at higher speeds
-                brake_threshold_multiplier = 0.9
+            # if speed_data.current_speed > 200:  # Brake earlier at higher speeds
+            #     brake_threshold_multiplier = 0.9
             if percent_of_max > 1 + (
                 brake_threshold_multiplier * percent_change_per_tick
             ):
@@ -381,7 +381,7 @@ class ThrottleController:
         if current_section == 4:
             mu = 2.05
         if current_section in [6, 7, 8]:
-            mu = 2.35
+            mu = 2.4
         if current_section == 9:
             mu = 1.4
 

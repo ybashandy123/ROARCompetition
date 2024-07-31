@@ -262,7 +262,7 @@ if __name__ == "__main__":
     for i in lapTimes:
         lapTimeTotal += i
     
-    print(f"Lap times:")
+    print(f"\nLap times:")
     for i in range(len(lapTimes)):
-        print(f"Lap {i + 1}: {lapTimes[i]:.3f} seconds")
-    print(f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / numRuns, 3)} seconds")
+        print(f"\tLap {i + 1}: {lapTimes[i]:.3f} seconds")
+    print(f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / numRuns, 3)} seconds\n")

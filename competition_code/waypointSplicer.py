@@ -86,7 +86,7 @@ for i in range(replacementSection[0], replacementSection[1]):
 for i in range(baseSection[1], len(baseWaypoints)):
     newWaypoints.append(baseWaypoints[i])
     
-print(f"Waypoints successfully spliced, saving as modifiedWaypoints.npz")
+print(f"\nWaypoints successfully spliced, saving as modifiedWaypoints.npz")
 np.savez_compressed(
     "modifiedWaypoints.npz",
     **roar_py_interface.RoarPyWaypoint.save_waypoint_list(newWaypoints),
