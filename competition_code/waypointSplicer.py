@@ -12,19 +12,24 @@ baseWaypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
 )
 
 replacementWaypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-    np.load("competition_code\\waypoints\\oldWaypointsPrimary.npz")
+    np.load("competition_code\\waypoints\\waypoints.npz")
 )
 
 newWaypoints = []
 
+plt.figure(figsize=(12, 12))
+plt.axis((-1100, 1100, -1100, 1100))
+plt.tight_layout()
+plt.ion()
 plt.show()
-plt.ion()    
-plt.figure(figsize=(14, 14))
-plt.axis((-1150, 1150, -1150, 1150))
 
-def drawWaypoints(waypoints, additionalWaypoints=baseWaypoints[:1]):
-    for i in waypoints:
+def drawWaypoints(waypointsBase, waypointsNew=None, additionalWaypoints=baseWaypoints[:1]):
+    for i in waypointsBase:
         plt.plot(i.location[0], i.location[1], "ro")
+    
+    if waypointsNew != None:
+        for i in waypointsNew:
+            plt.plot(i.location[0], i.location[1], "co")
 
     for i in additionalWaypoints:
         plt.plot(i.location[0], i.location[1], "g^")
@@ -36,7 +41,7 @@ def distanceToWaypoint(currentLoc, waypoint: roar_py_interface.RoarPyWaypoint):
 
 
 def findClosestIndex(currentLoc, waypoints: List[roar_py_interface.RoarPyWaypoint]):
-    lowestDist = 100
+    lowestDist = 10
     closestInd = 0
     for i in range(0, len(waypoints)):
         dist = distanceToWaypoint(currentLoc, waypoints[i % len(waypoints)])
@@ -64,21 +69,23 @@ def on_click(event):
 
 print("\n--- Generating Waypoint Map ---\n")
 
-drawWaypoints(baseWaypoints)
+drawWaypoints(baseWaypoints, replacementWaypoints)
 
 while len(replacementSection) < 2:
     plt.pause(0.01)
-print(f"Base waypoint indexes: {baseSection}")
-print(f"New waypoint indexes: {replacementSection}")
+
+print(f"Base waypoint indexes: {baseSection}\nLocations: {baseWaypoints[baseSection[0]].location}, {baseWaypoints[baseSection[1]].location}")
+print(f"\nNew waypoint indexes: {replacementSection}\nLocations: {replacementWaypoints[replacementSection[0]].location}, {replacementWaypoints[replacementSection[1]].location}")
+
 for i in range(baseSection[0]):
     newWaypoints.append(baseWaypoints[i])
 
-for i in range(replacementSection[0], replacementSection[1], 1):
+for i in range(replacementSection[0], replacementSection[1]):
     newWaypoints.append(replacementWaypoints[i])
 
-for i in range(replacementSection[1], len(baseWaypoints), 1):
+for i in range(baseSection[1], len(baseWaypoints)):
     newWaypoints.append(baseWaypoints[i])
-
+    
 print(f"Waypoints successfully spliced, saving as modifiedWaypoints.npz")
 np.savez_compressed(
     "modifiedWaypoints.npz",
