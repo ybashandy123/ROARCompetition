@@ -8,6 +8,53 @@ import numpy as np
 import gymnasium as gym
 import asyncio
 
+class bcolors:
+    CGREEN2 = '\033[92m'
+    UNDERLINE = '\033[4m'
+    CEND      = '\33[0m'
+    CBOLD     = '\33[1m'
+    CITALIC   = '\33[3m'
+    CURL      = '\33[4m'
+    CBLINK    = '\33[5m'
+    CBLINK2   = '\33[6m'
+    CSELECTED = '\33[7m'
+
+    CBLACK  = '\33[30m'
+    CRED    = '\33[31m'
+    CGREEN  = '\33[32m'
+    CYELLOW = '\33[33m'
+    CBLUE   = '\33[34m'
+    CVIOLET = '\33[35m'
+    CBEIGE  = '\33[36m'
+    CWHITE  = '\33[37m'
+
+    CBLACKBG  = '\33[40m'
+    CREDBG    = '\33[41m'
+    CGREENBG  = '\33[42m'
+    CYELLOWBG = '\33[43m'
+    CBLUEBG   = '\33[44m'
+    CVIOLETBG = '\33[45m'
+    CBEIGEBG  = '\33[46m'
+    CWHITEBG  = '\33[47m'
+
+    CGREY    = '\33[90m'
+    CRED2    = '\33[91m'
+    CGREEN2  = '\33[92m'
+    CYELLOW2 = '\33[93m'
+    CBLUE2   = '\33[94m'
+    CVIOLET2 = '\33[95m'
+    CBEIGE2  = '\33[96m'
+    CWHITE2  = '\33[97m'
+
+    CGREYBG    = '\33[100m'
+    CREDBG2    = '\33[101m'
+    CGREENBG2  = '\33[102m'
+    CYELLOWBG2 = '\33[103m'
+    CBLUEBG2   = '\33[104m'
+    CVIOLETBG2 = '\33[105m'
+    CBEIGEBG2  = '\33[106m'
+    CWHITEBG2  = '\33[107m'
+
 class RoarCompetitionRule:
     def __init__(
         self,
@@ -200,7 +247,7 @@ async def evaluate_solution(
         if collision_impulse_norm > 100.0:
             vehicle.close()
             print(f"major collision of intensity {collision_impulse_norm}")
-            # return None
+            return None
             # await rule.respawn()
         
         if rule.lap_finished():
@@ -240,6 +287,7 @@ async def main():
         max_seconds=5000,
         enable_visualization=True
     )
+    
     if evaluation_result is not None:
         print(f"Solution finished in {evaluation_result['elapsed_time']} seconds")
         return evaluation_result["elapsed_time"]
@@ -254,15 +302,41 @@ if __name__ == "__main__":
         
     lapTimes = []
     lapTimeTotal = 0
+    fastestLap = 10000
+    slowestLap = 0
+    failedLaps = 0
     
     for i in range(numRuns):
-        print(f"\nRun {i + 1}\n")
+        print(f"\n{bcolors.CBOLD}\tRun {i + 1}{bcolors.CEND}\n")
         lapTimes.append((asyncio.run(main())))
     
     for i in lapTimes:
-        lapTimeTotal += i
+        if i != None:
+            lapTimeTotal += i
+            if i < fastestLap:
+                fastestLap = i
+            if i > slowestLap: 
+                slowestLap = i
+        else: 
+            failedLaps += 1
     
-    print(f"\nLap times:")
+    print(f"\nRun times: ")
+    
     for i in range(len(lapTimes)):
-        print(f"\tLap {i + 1}: {lapTimes[i]:.3f} seconds")
-    print(f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / numRuns, 3)} seconds\n")
+        text = f"\tRun {i + 1}: "
+        
+        if lapTimes[i] == None:
+            text += f"{bcolors.CREDBG2}Crashed{bcolors.CEND}"
+        elif lapTimes[i] == fastestLap:
+            text += f"{bcolors.CGREEN2}{fastestLap:.3f}{bcolors.CEND} seconds"
+        elif lapTimes[i] == slowestLap:
+            text += f"{bcolors.CRED2}{slowestLap:.3f}{bcolors.CEND} seconds"
+        else:
+            text += f"{lapTimes[i]:.3f} seconds"
+        
+        print(text)
+    
+    try:
+        print(f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / (numRuns - failedLaps), 3)} seconds with {bcolors.CBOLD}{failedLaps}{bcolors.CEND} crash(es)\n")
+    except:
+        print("\nAll runs crashed")

@@ -80,11 +80,14 @@ print(f"\nNew waypoint indexes: {replacementSection}\nLocations: {replacementWay
 for i in range(baseSection[0]):
     newWaypoints.append(baseWaypoints[i])
 
-for i in range(replacementSection[0], replacementSection[1]):
-    newWaypoints.append(replacementWaypoints[i])
-
-for i in range(baseSection[1], len(baseWaypoints)):
-    newWaypoints.append(baseWaypoints[i])
+if replacementSection[0] == replacementSection[1]:
+    for i in range(replacementSection[0], len(replacementWaypoints)):
+        newWaypoints.append(replacementWaypoints[i])
+else:
+    for i in range(replacementSection[0], replacementSection[1]):
+        newWaypoints.append(replacementWaypoints[i])
+    for i in range(baseSection[1], len(baseWaypoints)):
+        newWaypoints.append(baseWaypoints[i])
     
 print(f"\nWaypoints successfully spliced, saving as modifiedWaypoints.npz")
 np.savez_compressed(

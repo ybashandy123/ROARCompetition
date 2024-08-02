@@ -16,7 +16,7 @@ from ThrottleController import ThrottleController
 import atexit
 # from scipy.interpolate import interp1d
 
-useDebug = True
+useDebug = False
 debugData = {}
 
 def dist_to_waypoint(location, waypoint: roar_py_interface.RoarPyWaypoint):
@@ -77,13 +77,14 @@ class RoarCompetitionSolution:
         self.num_ticks = 0
         self.section_start_ticks = 0
         self.current_section = -1
+        self.lapNum = 0
 
     async def initialize(self) -> None:
         # NOTE waypoints are changed through this line
         self.maneuverable_waypoints = (
             roar_py_interface.RoarPyWaypoint.load_waypoint_list(
                 np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypointsPrimary.npz")
-            )
+            )[15:]
         )
         # num_sections = len(self.maneuverable_waypoints) // 50
         # indexes_per_section = len(self.maneuverable_waypoints) // num_sections
@@ -137,6 +138,9 @@ class RoarCompetitionSolution:
                 elapsed_ticks = self.num_ticks - self.section_start_ticks
                 self.section_start_ticks = self.num_ticks
                 self.current_section = i
+                if self.current_section == 0:
+                    self.lapNum += 1
+                    print(f"\nLap {self.lapNum}\n")
                 print(f"Section {i}: {elapsed_ticks} ticks")
 
         new_waypoint_index = self.get_lookahead_index(current_speed_kmh)
@@ -159,25 +163,25 @@ class RoarCompetitionSolution:
         )
 
         steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
-        # if self.current_section == 4:
-        #     steerMultiplier = 1.15
-        # elif self.current_section == 5:
-        #     steerMultiplier = 1.4
-        if self.current_section == 3:
-            steerMultiplier *= 0.9
+        
+        if self.current_section in [2, 3]:
+            steerMultiplier *= 0.85
         if self.current_section == 4:
-            steerMultiplier = 1.2
+            steerMultiplier = 1.315
         if self.current_section in [6]:
-            steerMultiplier *= 4.4
+            steerMultiplier *= 4.6
+            # steerMultiplier += current_speed_kmh / 40
         if self.current_section == 9:
-            steerMultiplier = 2.075
+            if current_speed_kmh < 130:
+                steerMultiplier = 1.5
+        
         control = {
             "throttle": np.clip(throttle, 0, 1),
             "steer": np.clip(steer_control * steerMultiplier, -1, 1),
             "brake": np.clip(brake, 0, 1),
             "hand_brake": 0,
             "reverse": 0,
-            "target_gear": gear,  # Gears do not appear to have a significant impact on speed
+            "target_gear": gear,  # Gears do not appear to have an impact on speed
         }
 
         currentWaypoint = self.maneuverable_waypoints[
@@ -198,6 +202,7 @@ class RoarCompetitionSolution:
 Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) index {self.current_waypoint_idx} section {self.current_section} \n\
 Distance to target waypoint: {math.sqrt((waypoint_to_follow.location[0] - vehicle_location[0]) ** 2 + (waypoint_to_follow.location[1] - vehicle_location[1]) ** 2):.3f}\n"
                 )
+                
                 print(
                     f"--- Speed: {current_speed_kmh:.2f} kph \n\
 Throttle: {control['throttle']:.3f} \n\
@@ -213,7 +218,7 @@ Steer: {control['steer']:.10f} \n"
         Returns the number of waypoints to look ahead based on the speed the car is currently going
         """
         speed_to_lookahead_dict = {
-            90: 8,
+            90: 9,
             110: 12,
             130: 14,
             160: 18,
@@ -282,18 +287,19 @@ Steer: {control['steer']:.10f} \n"
 
         # Section specific tuning
         if self.current_section in [0, 1]:
-            num_points = round(lookahead_value / 2)
+            num_points = round(lookahead_value / 2.25)
         elif self.current_section == 4:
-            num_points = lookahead_value - 12
+            num_points = lookahead_value - 2
         elif self.current_section == 5:
             num_points = round(lookahead_value * 1.5)
         elif self.current_section == 6:
             num_points = 1
             next_waypoint_index = self.current_waypoint_idx + 21
+            # num_points = round(lookahead_value * 0.8)
         elif self.current_section == 7:
-            num_points = round(lookahead_value * 1.4)
+            num_points = round(lookahead_value * 1.25)
         elif self.current_section == 9:
-            num_points = 4
+            num_points = 2
         else:
             num_points = lookahead_value * 2
 

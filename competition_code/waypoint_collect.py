@@ -9,7 +9,7 @@ import pygame
 
 WAYPOINT_DISTANCE = 2.0
 WAYPOINT_LANE_WIDTH = 12.0
-
+startLoc = [-283.79998779296875, 391.6999816894531, 0.5999999642372131]
 
 class ManualControlViewer:
     def __init__(self):
@@ -78,7 +78,7 @@ class ManualControlViewer:
         if pressed_keys[pygame.K_d]:
             new_control["steer"] = 0.05
         if pressed_keys[pygame.K_s]:
-            new_control["steer"] = 0.05
+            new_control["throttle"] = 0.3
 
         image_surface = pygame.image.fromstring(
             image_pil.tobytes(), image_pil.size, image_pil.mode
@@ -186,12 +186,12 @@ async def main():
                 if to_add is not None:
                     print("Adding waypoint", to_add)
                     waypoints.append(to_add)
-                dist_to_first_waypoint = np.linalg.norm(
-                    current_location[:2] - waypoints[0].location[:2]
+                dist_to_start = np.linalg.norm(
+                    current_location[:2] - startLoc[:2]
                 )
-                if dist_to_first_waypoint < 100:
-                    print("Distance to first waypoint", dist_to_first_waypoint)
-                    if dist_to_first_waypoint < 3 and len(waypoints) > 100:
+                if dist_to_start < 100:
+                    print("Distance to start", dist_to_start)
+                    if dist_to_start < 4 and len(waypoints) > 100:
                         is_collecting = False
                         print("Lap completed")
 
