@@ -172,8 +172,9 @@ class RoarCompetitionSolution:
             steerMultiplier *= 4.6
             # steerMultiplier += current_speed_kmh / 40
         if self.current_section == 9:
-            if current_speed_kmh < 130:
-                steerMultiplier = 1.5
+            # if current_speed_kmh < 130:
+            #     steerMultiplier = 1.5
+            steerMultiplier = max(steerMultiplier, 1.725)
         
         control = {
             "throttle": np.clip(throttle, 0, 1),
@@ -219,7 +220,7 @@ Steer: {control['steer']:.10f} \n"
         """
         speed_to_lookahead_dict = {
             90: 9,
-            110: 12,
+            110: 11,
             130: 14,
             160: 18,
             180: 22,
@@ -247,6 +248,8 @@ Steer: {control['steer']:.10f} \n"
         Adds the lookahead waypoint to the current waypoint and normalizes it so that the value does not go out of bounds
         """
         num_waypoints = self.get_lookahead_value(speed)
+        # if self.current_section == 9:
+        #     num_waypoints -= 1
         # print("speed " + str(speed)
         #       + " cur_ind " + str(self.current_waypoint_idx)
         #       + " num_points " + str(num_waypoints)
@@ -288,18 +291,20 @@ Steer: {control['steer']:.10f} \n"
         # Section specific tuning
         if self.current_section in [0, 1]:
             num_points = round(lookahead_value / 2.25)
+        elif self.current_section == 3:
+            num_points = round(lookahead_value * 2.1)
         elif self.current_section == 4:
-            num_points = lookahead_value - 2
+            num_points = lookahead_value - 4
         elif self.current_section == 5:
             num_points = round(lookahead_value * 1.5)
         elif self.current_section == 6:
-            num_points = 1
+            num_points = 0
             next_waypoint_index = self.current_waypoint_idx + 21
             # num_points = round(lookahead_value * 0.8)
         elif self.current_section == 7:
             num_points = round(lookahead_value * 1.25)
         elif self.current_section == 9:
-            num_points = 2
+            num_points = 0
         else:
             num_points = lookahead_value * 2
 

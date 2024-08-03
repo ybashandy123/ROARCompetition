@@ -307,7 +307,7 @@ if __name__ == "__main__":
     failedLaps = 0
     
     for i in range(numRuns):
-        print(f"\n{bcolors.CBOLD}\tRun {i + 1}{bcolors.CEND}\n")
+        print(f"\n{bcolors.CBOLD}\tRun {i + 1} of {numRuns}{bcolors.CEND}\n")
         lapTimes.append((asyncio.run(main())))
     
     for i in lapTimes:
