@@ -19,7 +19,7 @@ plt.axis((-1100, 1100, -1100, 1100))
 plt.margins(x=0, y=0)
 
 for i in data:
-    if int(i) == 0 or int(i) >= 1500:
+    if int(i) == 0 or int(i) >= 750:
         color = (0, 0, 0)
         brakeVal = data[i]["brake"]
         throttleVal = data[i]["throttle"]

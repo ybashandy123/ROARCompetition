@@ -76,7 +76,7 @@ class RoarCompetitionSolution:
         self.section_indeces = []
         self.num_ticks = 0
         self.section_start_ticks = 0
-        self.current_section = -1
+        self.current_section = 0
         self.lapNum = 0
 
     async def initialize(self) -> None:
@@ -89,13 +89,14 @@ class RoarCompetitionSolution:
         # num_sections = len(self.maneuverable_waypoints) // 50
         # indexes_per_section = len(self.maneuverable_waypoints) // num_sections
         # self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
-        sectionLocations = [[-283.8, 392], [64, 890], [511, 1037], [762, 908], [198, 307], [-12, 38], [-85, -339], [-150, -1042], [-318, -991], [-352, -119]]
+        sectionLocations = [[-278, 372], [64, 890], [511, 1037], [762, 908], [198, 307], [-12, 38], [-85, -339], [-150, -1042], [-318, -991], [-352, -119]]
         for i in sectionLocations:
             self.section_indeces.append(findClosestIndex(i, self.maneuverable_waypoints))
         
         print(f"True total length: {len(self.maneuverable_waypoints) * 3}")
         print(f"1 lap length: {len(self.maneuverable_waypoints)}")
         print(f"Section indexes: {self.section_indeces}")
+        print("\nLap 1\n")
 
         # Receive location, rotation and velocity data
         vehicle_location = self.location_sensor.get_last_gym_observation()
@@ -138,9 +139,9 @@ class RoarCompetitionSolution:
                 elapsed_ticks = self.num_ticks - self.section_start_ticks
                 self.section_start_ticks = self.num_ticks
                 self.current_section = i
-                if self.current_section == 0:
+                if self.current_section == 0 and self.lapNum != 2:
                     self.lapNum += 1
-                    print(f"\nLap {self.lapNum}\n")
+                    print(f"\nLap {self.lapNum + 1}\n")
                 print(f"Section {i}: {elapsed_ticks} ticks")
 
         new_waypoint_index = self.get_lookahead_index(current_speed_kmh)
@@ -164,17 +165,17 @@ class RoarCompetitionSolution:
 
         steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
         
-        if self.current_section in [2, 3]:
+        if self.current_section in [3]:
             steerMultiplier *= 0.85
         if self.current_section == 4:
             steerMultiplier = 1.315
         if self.current_section in [6]:
-            steerMultiplier *= 4.6
-            # steerMultiplier += current_speed_kmh / 40
+            # steerMultiplier *= 4.6
+            steerMultiplier += 4.35
         if self.current_section == 9:
             # if current_speed_kmh < 130:
             #     steerMultiplier = 1.5
-            steerMultiplier = max(steerMultiplier, 1.725)
+            steerMultiplier = max(steerMultiplier, 1.65)
         
         control = {
             "throttle": np.clip(throttle, 0, 1),
@@ -289,10 +290,12 @@ Steer: {control['steer']:.10f} \n"
         lookahead_value = self.get_lookahead_value(current_speed)
 
         # Section specific tuning
-        if self.current_section in [0, 1]:
+        if self.current_section == 0:
+            num_points = round(lookahead_value / 2.75)
+        elif self.current_section == 1:
             num_points = round(lookahead_value / 2.25)
-        elif self.current_section == 3:
-            num_points = round(lookahead_value * 2.1)
+        # elif self.current_section == 3:
+        #     num_points = round(lookahead_value * 2.1)
         elif self.current_section == 4:
             num_points = lookahead_value - 4
         elif self.current_section == 5:

@@ -121,6 +121,7 @@ class ThrottleController:
         """
         Converts speed data into throttle and brake values
         """
+        speed_change_per_tick = 2.5 # Speed decrease in kph per tick
         percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
 
         # self.dprint("dist=" + str(round(speed_data.distance_to_section)) + " cs=" + str(round(speed_data.current_speed, 2))
@@ -128,6 +129,7 @@ class ThrottleController:
         #             + " maxs= " + str(round(speed_data.recommended_speed_now, 2)) + " pcnt= " + str(round(percent_of_max, 2)))
 
         percent_change_per_tick = 0.075  # speed drop for one time-tick of braking
+        true_percent_change_per_tick = round(speed_change_per_tick / (speed_data.current_speed + 0.001), 5)
         speed_up_threshold = 0.9
         throttle_decrease_multiple = 0.7
         throttle_increase_multiple = 1.25
@@ -135,13 +137,15 @@ class ThrottleController:
         percent_speed_change = (speed_data.current_speed - self.previous_speed) / (
             self.previous_speed + 0.0001
         )  # avoid division by zero
+        speed_change = round(speed_data.current_speed - self.previous_speed, 3)
 
         if percent_of_max > 1:
             # Consider slowing down
             # if speed_data.current_speed > 200:  # Brake earlier at higher speeds
             #     brake_threshold_multiplier = 0.9
+            
             if percent_of_max > 1 + (
-                brake_threshold_multiplier * percent_change_per_tick
+                brake_threshold_multiplier * true_percent_change_per_tick
             ):
                 if self.brake_ticks > 0:
                     self.dprint(
@@ -151,13 +155,12 @@ class ThrottleController:
                         + str(self.brake_ticks)
                     )
                     return -1, 1
+                
                 # if speed is not decreasing fast, hit the brake.
-                if self.brake_ticks <= 0 and not self.isSpeedDroppingFast(
-                    percent_change_per_tick, speed_data.current_speed
-                ):
+                if self.brake_ticks <= 0 and speed_change < 1.5:
                     # start braking, and set for how many ticks to brake
-                    self.brake_ticks = math.floor(
-                        (percent_of_max - 1) / percent_change_per_tick
+                    self.brake_ticks = round(
+                        (speed_data.current_speed - speed_data.recommended_speed_now) / speed_change_per_tick
                     )
                     # self.brake_ticks = 1, or (1 or 2 but not more)
                     self.dprint(
@@ -167,6 +170,7 @@ class ThrottleController:
                         + str(self.brake_ticks)
                     )
                     return -1, 1
+                
                 else:
                     # speed is already dropping fast, ok to throttle because the effect of throttle is delayed
                     self.dprint(
@@ -178,9 +182,7 @@ class ThrottleController:
                     self.brake_ticks = 0  # done slowing down. clear brake_ticks
                     return 1, 0
             else:
-                if self.isSpeedDroppingFast(
-                    percent_change_per_tick, speed_data.current_speed
-                ):
+                if speed_change >= 1.5:
                     # speed is already dropping fast, ok to throttle because the effect of throttle is delayed
                     self.dprint(
                         "tb: tick "
@@ -195,8 +197,9 @@ class ThrottleController:
                 throttle_to_maintain = self.get_throttle_to_maintain_speed(
                     speed_data.current_speed
                 )
+                
                 if percent_of_max > 1.02 or percent_speed_change > (
-                    -percent_change_per_tick / 2
+                    -true_percent_change_per_tick / 2
                 ):
                     self.dprint(
                         "tb: tick "
@@ -214,9 +217,7 @@ class ThrottleController:
         else:
             self.brake_ticks = 0  # done slowing down. clear brake_ticks
             # Speed up
-            if self.isSpeedDroppingFast(
-                percent_change_per_tick, speed_data.current_speed
-            ):
+            if speed_change >= 1.5:
                 # speed is dropping fast, ok to throttle because the effect of throttle is delayed
                 self.dprint(
                     "tb: tick "
@@ -236,7 +237,7 @@ class ThrottleController:
             throttle_to_maintain = self.get_throttle_to_maintain_speed(
                 speed_data.current_speed
             )
-            if percent_of_max < 0.98 or percent_speed_change < -0.01:
+            if percent_of_max < 0.98 or true_percent_change_per_tick < -0.01:
                 self.dprint(
                     "tb: tick "
                     + str(self.tick_counter)
@@ -367,23 +368,23 @@ class ThrottleController:
         Returns a target speed based off of the radius of the turn
         """
 
-        mu = 2.15
+        mu = 2.4
 
         if radius >= self.max_radius:
             return self.max_speed
 
         if current_section == 1:
-            mu = 2.025
+            mu = 2.2
         if current_section == 2:
-            mu = 2.6
+            mu = 3.15
         if current_section == 3:
-            mu = 2.6
+            mu = 3.1
         if current_section == 4:
-            mu = 2.05
-        if current_section in [6]:
             mu = 2.3
+        if current_section in [6]:
+            mu = 2.525
         if current_section == 9:
-            mu = 1.95
+            mu = 2.0
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
 
