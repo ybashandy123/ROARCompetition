@@ -16,7 +16,8 @@ from ThrottleController import ThrottleController
 import atexit
 # from scipy.interpolate import interp1d
 
-useDebug = False
+useDebug = True
+useDebugPrinting = False
 debugData = {}
 
 def dist_to_waypoint(location, waypoint: roar_py_interface.RoarPyWaypoint):
@@ -77,7 +78,7 @@ class RoarCompetitionSolution:
         self.num_ticks = 0
         self.section_start_ticks = 0
         self.current_section = 0
-        self.lapNum = 0
+        self.lapNum = 1
 
     async def initialize(self) -> None:
         # NOTE waypoints are changed through this line
@@ -139,9 +140,9 @@ class RoarCompetitionSolution:
                 elapsed_ticks = self.num_ticks - self.section_start_ticks
                 self.section_start_ticks = self.num_ticks
                 self.current_section = i
-                if self.current_section == 0 and self.lapNum != 2:
+                if self.current_section == 0 and self.lapNum != 3:
                     self.lapNum += 1
-                    print(f"\nLap {self.lapNum + 1}\n")
+                    print(f"\nLap {self.lapNum}\n")
                 print(f"Section {i}: {elapsed_ticks} ticks")
 
         new_waypoint_index = self.get_lookahead_index(current_speed_kmh)
@@ -198,7 +199,7 @@ class RoarCompetitionSolution:
             debugData[self.num_ticks]["steer"] = round(float(control["steer"]), 10)
             debugData[self.num_ticks]["speed"] = round(current_speed_kmh, 3)
             
-            if self.num_ticks % 5 == 0:
+            if useDebugPrinting and self.num_ticks % 5 == 0:            
                 print(
                     f"- Target waypoint: ({waypoint_to_follow.location[0]:.2f}, {waypoint_to_follow.location[1]:.2f}) index {new_waypoint_index} \n\
 Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) index {self.current_waypoint_idx} section {self.current_section} \n\

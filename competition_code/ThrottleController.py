@@ -121,13 +121,13 @@ class ThrottleController:
         """
         Converts speed data into throttle and brake values
         """
-        speed_change_per_tick = 2.5 # Speed decrease in kph per tick
-        percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
 
         # self.dprint("dist=" + str(round(speed_data.distance_to_section)) + " cs=" + str(round(speed_data.current_speed, 2))
         #             + " ts= " + str(round(speed_data.target_speed_at_distance, 2))
         #             + " maxs= " + str(round(speed_data.recommended_speed_now, 2)) + " pcnt= " + str(round(percent_of_max, 2)))
-
+        
+        percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
+        speed_change_per_tick = 2.5 # Speed decrease in kph per tick
         percent_change_per_tick = 0.075  # speed drop for one time-tick of braking
         true_percent_change_per_tick = round(speed_change_per_tick / (speed_data.current_speed + 0.001), 5)
         speed_up_threshold = 0.9
@@ -286,23 +286,40 @@ class ThrottleController:
         """
         Returns a throttle value to maintain the current speed
         """
-        throttle = 0.65 + current_speed / 500
+        throttle = 0.75 + current_speed / 500
         return throttle
 
     def speed_for_turn(
         self, distance: float, target_speed: float, current_speed: float
     ):
+        """Generates a SpeedData object with the target speed for the far
+
+        Args:
+            distance (float): Distance from the start of the curve
+            target_speed (float): Target speed of the curve
+            current_speed (float): Current speed of the car
+
+        Returns:
+            SpeedData: A SpeedData object containing the distance to the corner, current speed, target speed, and max speed
         """
-        Takes in a target speed and distance and produces a speed that the car should target. Returns a SpeedData object
-        """
+        # Takes in a target speed and distance and produces a speed that the car should target. Returns a SpeedData object
+        
         d = (1 / 675) * (target_speed**2) + distance
         max_speed = math.sqrt(825 * d)
         return SpeedData(distance, current_speed, target_speed, max_speed)
 
     def get_next_interesting_waypoints(self, current_location, more_waypoints):
+        """Returns a list of waypoints that are approximately as far as specified in intended_target_distance from the current location
+
+        Args:
+            current_location (roar_py_interface.RoarPyWaypoint): The current location of the car
+            more_waypoints ([roar_py_interface.RoarPyWaypoint]): A list of waypoints
+
+        Returns:
+            [roar_py_interface.RoarPyWaypoint]: A list of waypoints within specified distances of the car
         """
-        Returns a list of waypoints that are approximately as far as the given in intended_target_distance from the current location
-        """
+        # Returns a list of waypoints that are approximately as far as the given in intended_target_distance from the current location
+        
         # return a list of points with distances approximately as given
         # in intended_target_distance[] from the current location.
         points = []
@@ -332,10 +349,16 @@ class ThrottleController:
         self.dprint("wp dist " + str(dist))
         return points
 
-    def get_radius(self, wp):
+    def get_radius(self, wp: [roar_py_interface.RoarPyWaypoint]):
+        """Returns the radius of a curve given 3 waypoints using the Menger Curvature Formula
+
+        Args:
+            wp ([roar_py_interface.RoarPyWaypoint]): A list of 3 RoarPyWaypoints
+
+        Returns:
+            float: The radius of the curve made by the 3 given waypoints
         """
-        Gets the radius of a turn given 3 waypoints by using the Menger Curve Formula
-        """
+
         point1 = (wp[0].location[0], wp[0].location[1])
         point2 = (wp[1].location[0], wp[1].location[1])
         point3 = (wp[2].location[0], wp[2].location[1])
@@ -363,9 +386,15 @@ class ThrottleController:
 
         return radius
 
-    def get_target_speed(self, radius: float, current_section):
-        """
-        Returns a target speed based off of the radius of the turn
+    def get_target_speed(self, radius: float, current_section: int):
+        """Returns a target speed based on the radius of the turn and the section it is in
+
+        Args:
+            radius (float): The calculated radius of the turn
+            current_section (int): The current section of the track the car is in
+
+        Returns:
+            float: The maximum speed the car can go around the corner at
         """
 
         mu = 2.4
