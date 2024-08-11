@@ -85,7 +85,7 @@ class RoarCompetitionSolution:
         self.maneuverable_waypoints = (
             roar_py_interface.RoarPyWaypoint.load_waypoint_list(
                 np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypointsPrimary.npz")
-            )[15:]
+            )[50:]
         )
         # num_sections = len(self.maneuverable_waypoints) // 50
         # indexes_per_section = len(self.maneuverable_waypoints) // num_sections
@@ -176,7 +176,7 @@ class RoarCompetitionSolution:
         if self.current_section == 9:
             # if current_speed_kmh < 130:
             #     steerMultiplier = 1.5
-            steerMultiplier = max(steerMultiplier, 1.65)
+            steerMultiplier = max(steerMultiplier, 1.6)
         
         control = {
             "throttle": np.clip(throttle, 0, 1),
@@ -289,28 +289,27 @@ Steer: {control['steer']:.10f} \n"
         """
         next_waypoint_index = self.get_lookahead_index(current_speed)
         lookahead_value = self.get_lookahead_value(current_speed)
+        num_points = lookahead_value * 2
 
         # Section specific tuning
         if self.current_section == 0:
-            num_points = round(lookahead_value / 2.75)
-        elif self.current_section == 1:
-            num_points = round(lookahead_value / 2.25)
-        # elif self.current_section == 3:
-        #     num_points = round(lookahead_value * 2.1)
-        elif self.current_section == 4:
-            num_points = lookahead_value - 4
-        elif self.current_section == 5:
             num_points = round(lookahead_value * 1.5)
-        elif self.current_section == 6:
+        if self.current_section == 1:
+            num_points = round(lookahead_value / 2.25)
+        # if self.current_section == 3:
+        #     num_points = round(lookahead_value * 2.1)
+        if self.current_section == 4:
+            num_points = lookahead_value - 4
+        if self.current_section == 5:
+            num_points = round(lookahead_value * 1.5)
+        if self.current_section == 6:
             num_points = 0
             next_waypoint_index = self.current_waypoint_idx + 21
             # num_points = round(lookahead_value * 0.8)
-        elif self.current_section == 7:
+        if self.current_section == 7:
             num_points = round(lookahead_value * 1.25)
-        elif self.current_section == 9:
+        if self.current_section == 9:
             num_points = 0
-        else:
-            num_points = lookahead_value * 2
 
         start_index_for_avg = (next_waypoint_index - (num_points // 2)) % len(
             self.maneuverable_waypoints

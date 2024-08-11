@@ -181,7 +181,7 @@ async def main():
                     closest_waypoint = carla_world.maneuverable_waypoints[
                         closest_waypoint_idx
                     ]
-                    if closest_waypoint not in waypoints:
+                    if closest_waypoint not in waypoints and not is_collecting:
                         to_add = closest_waypoint
                 if to_add is not None:
                     print("Adding waypoint", to_add)
