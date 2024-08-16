@@ -14,14 +14,17 @@ import roar_py_interface
 from LateralController import LatController
 from ThrottleController import ThrottleController
 import atexit
+
 # from scipy.interpolate import interp1d
 
 useDebug = True
 useDebugPrinting = False
 debugData = {}
 
+
 def dist_to_waypoint(location, waypoint: roar_py_interface.RoarPyWaypoint):
-        return np.linalg.norm(location[:2] - waypoint.location[:2])
+    return np.linalg.norm(location[:2] - waypoint.location[:2])
+
 
 def filter_waypoints(
     location: np.ndarray,
@@ -33,6 +36,7 @@ def filter_waypoints(
             return i % len(waypoints)
     return current_idx
 
+
 def findClosestIndex(location, waypoints: List[roar_py_interface.RoarPyWaypoint]):
     lowestDist = 100
     closestInd = 0
@@ -43,14 +47,18 @@ def findClosestIndex(location, waypoints: List[roar_py_interface.RoarPyWaypoint]
             closestInd = i
     return closestInd % len(waypoints)
 
+
 @atexit.register
 def saveDebugData():
     if useDebug:
         print("Saving debug data")
         jsonData = json.dumps(debugData, indent=4)
-        with open(f"{os.path.dirname(__file__)}\\debugData\\debugData.json", "w+") as outfile:
+        with open(
+            f"{os.path.dirname(__file__)}\\debugData\\debugData.json", "w+"
+        ) as outfile:
             outfile.write(jsonData)
         print("Debug Data Saved")
+
 
 class RoarCompetitionSolution:
     def __init__(
@@ -90,10 +98,23 @@ class RoarCompetitionSolution:
         # num_sections = len(self.maneuverable_waypoints) // 50
         # indexes_per_section = len(self.maneuverable_waypoints) // num_sections
         # self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
-        sectionLocations = [[-278, 372], [64, 890], [511, 1037], [762, 908], [198, 307], [-12, 38], [-85, -339], [-150, -1042], [-318, -991], [-352, -119]]
+        sectionLocations = [
+            [-278, 372],
+            [64, 890],
+            [511, 1037],
+            [762, 908],
+            [198, 307],
+            [-12, 38],
+            [-85, -339],
+            [-150, -1042],
+            [-318, -991],
+            [-352, -119],
+        ]
         for i in sectionLocations:
-            self.section_indeces.append(findClosestIndex(i, self.maneuverable_waypoints))
-        
+            self.section_indeces.append(
+                findClosestIndex(i, self.maneuverable_waypoints)
+            )
+
         print(f"True total length: {len(self.maneuverable_waypoints) * 3}")
         print(f"1 lap length: {len(self.maneuverable_waypoints)}")
         print(f"Section indexes: {self.section_indeces}")
@@ -169,10 +190,11 @@ class RoarCompetitionSolution:
         if self.current_section in [3]:
             steerMultiplier *= 0.85
         if self.current_section == 4:
-            steerMultiplier = 1.315
+            steerMultiplier = min(1.315, steerMultiplier * 0.9)
         if self.current_section in [6]:
             # steerMultiplier *= 4.6
-            steerMultiplier += 4.35
+            # steerMultiplier += 4.35
+            steerMultiplier = min(steerMultiplier * 5, 6.75)
         if self.current_section == 9:
             # if current_speed_kmh < 130:
             #     steerMultiplier = 1.5
@@ -193,19 +215,22 @@ class RoarCompetitionSolution:
 
         if useDebug:
             debugData[self.num_ticks] = {}
-            debugData[self.num_ticks]["loc"] = [round(currentWaypoint[0], 3), round(currentWaypoint[1], 3)]
+            debugData[self.num_ticks]["loc"] = [
+                round(currentWaypoint[0], 3),
+                round(currentWaypoint[1], 3),
+            ]
             debugData[self.num_ticks]["throttle"] = round(float(control["throttle"]), 3)
             debugData[self.num_ticks]["brake"] = round(float(control["brake"]), 3)
             debugData[self.num_ticks]["steer"] = round(float(control["steer"]), 10)
             debugData[self.num_ticks]["speed"] = round(current_speed_kmh, 3)
-            
-            if useDebugPrinting and self.num_ticks % 5 == 0:            
+
+            if useDebugPrinting and self.num_ticks % 5 == 0:
                 print(
                     f"- Target waypoint: ({waypoint_to_follow.location[0]:.2f}, {waypoint_to_follow.location[1]:.2f}) index {new_waypoint_index} \n\
 Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) index {self.current_waypoint_idx} section {self.current_section} \n\
 Distance to target waypoint: {math.sqrt((waypoint_to_follow.location[0] - vehicle_location[0]) ** 2 + (waypoint_to_follow.location[1] - vehicle_location[1]) ** 2):.3f}\n"
                 )
-                
+
                 print(
                     f"--- Speed: {current_speed_kmh:.2f} kph \n\
 Throttle: {control['throttle']:.3f} \n\
@@ -295,20 +320,25 @@ Steer: {control['steer']:.10f} \n"
         if self.current_section == 0:
             num_points = round(lookahead_value * 1.5)
         if self.current_section == 1:
-            num_points = round(lookahead_value / 2.25)
+            num_points = 0
         # if self.current_section == 3:
-        #     num_points = round(lookahead_value * 2.1)
+        #     num_points = round(lookahead_value * 2.25)
         if self.current_section == 4:
+            # num_points = round(lookahead_value * 0.725)
             num_points = lookahead_value - 4
         if self.current_section == 5:
             num_points = round(lookahead_value * 1.5)
         if self.current_section == 6:
+            # num_points = round(lookahead_value * 0.4)
             num_points = 0
             next_waypoint_index = self.current_waypoint_idx + 21
             # num_points = round(lookahead_value * 0.8)
-        if self.current_section == 7:
-            num_points = round(lookahead_value * 1.25)
+        # if self.current_section == 7:
+        #     num_points = round(lookahead_value * 1.25)
         if self.current_section == 9:
+            (self.current_waypoint_idx + lookahead_value - 4) % len(
+                self.maneuverable_waypoints
+            )
             num_points = 0
 
         start_index_for_avg = (next_waypoint_index - (num_points // 2)) % len(

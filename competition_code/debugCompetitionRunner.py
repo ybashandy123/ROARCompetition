@@ -8,7 +8,7 @@ import numpy as np
 import gymnasium as gym
 import asyncio
 
-class bcolors:
+class Colors:
     CGREEN2 = '\033[92m'
     UNDERLINE = '\033[4m'
     CEND      = '\33[0m'
@@ -246,7 +246,7 @@ async def evaluate_solution(
         collision_impulse_norm = np.linalg.norm(collision_sensor.get_last_observation().impulse_normal)
         if collision_impulse_norm > 100.0:
             vehicle.close()
-            print(f"major collision of intensity {collision_impulse_norm}")
+            print(f"{Colors.CRED}major collision of intensity {collision_impulse_norm}{Colors.CEND}")
             return None
             # await rule.respawn()
         
@@ -307,7 +307,7 @@ if __name__ == "__main__":
     failedLaps = 0
     
     for i in range(numRuns):
-        print(f"\n{bcolors.CBOLD}\tRun {i + 1} of {numRuns}{bcolors.CEND}\n")
+        print(f"\n{Colors.CBOLD}\tRun {i + 1} of {numRuns}{Colors.CEND}\n")
         lapTimes.append((asyncio.run(main())))
     
     for i in lapTimes:
@@ -326,17 +326,17 @@ if __name__ == "__main__":
         text = f"\tRun {i + 1}: "
         
         if lapTimes[i] == None:
-            text += f"{bcolors.CREDBG2}Crashed{bcolors.CEND}"
+            text += f"{Colors.CREDBG2}Crashed{Colors.CEND}"
         elif lapTimes[i] == fastestLap:
-            text += f"{bcolors.CGREEN2}{fastestLap:.3f}{bcolors.CEND} seconds"
+            text += f"{Colors.CGREEN2}{fastestLap:.3f}{Colors.CEND} seconds"
         elif lapTimes[i] == slowestLap:
-            text += f"{bcolors.CRED2}{slowestLap:.3f}{bcolors.CEND} seconds"
+            text += f"{Colors.CRED2}{slowestLap:.3f}{Colors.CEND} seconds"
         else:
             text += f"{lapTimes[i]:.3f} seconds"
         
         print(text)
     
     try:
-        print(f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / (numRuns - failedLaps), 3)} seconds with {bcolors.CBOLD}{failedLaps}{bcolors.CEND} crash(es)\n")
+        print(f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / (numRuns - failedLaps), 3)} seconds with {Colors.CBOLD}{failedLaps}{Colors.CEND} crash(es)\n")
     except:
         print("\nAll runs crashed")

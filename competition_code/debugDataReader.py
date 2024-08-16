@@ -19,20 +19,19 @@ plt.axis((-1100, 1100, -1100, 1100))
 plt.margins(x=0, y=0)
 
 for i in data:
-    if int(i) == 0 or int(i) >= 750:
-        color = (0, 0, 0)
-        brakeVal = data[i]["brake"]
-        throttleVal = data[i]["throttle"]
+    color = (0, 0, 0)
+    brakeVal = data[i]["brake"]
+    throttleVal = data[i]["throttle"]
+    
+    if brakeVal > 0:
+        color = (brakeVal, 0, 0)
+    else:
+        color = (0, throttleVal, 0)
+    
+    if int(i) % 100 == 0:
+        print(f"Plotting point {i}")
         
-        if brakeVal > 0:
-            color = (brakeVal, 0, 0)
-        else:
-            color = (0, throttleVal, 0)
-        
-        if int(i) % 100 == 0:
-            print(f"Plotting point {i}")
-            
-        plt.plot(data[i]["loc"][0], data[i]["loc"][1], "o", color=color)
+    plt.plot(data[i]["loc"][0], data[i]["loc"][1], "o", color=color)
 
 print("\n--- Plot complete ---\n")
 plt.tight_layout()
