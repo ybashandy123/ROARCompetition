@@ -13,8 +13,17 @@ import numpy as np
 import roar_py_interface
 from LateralController import LatController
 from ThrottleController import ThrottleController
+import atexit
 
 # from scipy.interpolate import interp1d
+
+useDebug = True
+useDebugPrinting = False
+debugData = {}
+
+
+def dist_to_waypoint(location, waypoint: roar_py_interface.RoarPyWaypoint):
+    return np.linalg.norm(location[:2] - waypoint.location[:2])
 
 
 def filter_waypoints(
@@ -22,13 +31,33 @@ def filter_waypoints(
     current_idx: int,
     waypoints: List[roar_py_interface.RoarPyWaypoint],
 ) -> int:
-    def dist_to_waypoint(waypoint: roar_py_interface.RoarPyWaypoint):
-        return np.linalg.norm(location[:2] - waypoint.location[:2])
-
     for i in range(current_idx, len(waypoints) + current_idx):
-        if dist_to_waypoint(waypoints[i % len(waypoints)]) < 3:
+        if dist_to_waypoint(location, waypoints[i % len(waypoints)]) < 3:
             return i % len(waypoints)
     return current_idx
+
+
+def findClosestIndex(location, waypoints: List[roar_py_interface.RoarPyWaypoint]):
+    lowestDist = 100
+    closestInd = 0
+    for i in range(0, len(waypoints)):
+        dist = dist_to_waypoint(location, waypoints[i % len(waypoints)])
+        if dist < lowestDist:
+            lowestDist = dist
+            closestInd = i
+    return closestInd % len(waypoints)
+
+
+@atexit.register
+def saveDebugData():
+    if useDebug:
+        print("Saving debug data")
+        jsonData = json.dumps(debugData, indent=4)
+        with open(
+            f"{os.path.dirname(__file__)}\\debugData\\debugData.json", "w+"
+        ) as outfile:
+            outfile.write(jsonData)
+        print("Debug Data Saved")
 
 
 class RoarCompetitionSolution:
@@ -56,21 +85,40 @@ class RoarCompetitionSolution:
         self.section_indeces = []
         self.num_ticks = 0
         self.section_start_ticks = 0
-        self.current_section = -1
+        self.current_section = 0
+        self.lapNum = 1
 
     async def initialize(self) -> None:
         # NOTE waypoints are changed through this line
         self.maneuverable_waypoints = (
             roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-                np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypoints10.npz")
-            )
+                np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypointsPrimary.npz")
+            )[50:]
         )
-        num_sections = len(self.maneuverable_waypoints) // 50
-        indexes_per_section = len(self.maneuverable_waypoints) // num_sections
-        self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
+        # num_sections = len(self.maneuverable_waypoints) // 50
+        # indexes_per_section = len(self.maneuverable_waypoints) // num_sections
+        # self.section_indeces = [indexes_per_section * i for i in range(0, num_sections)]
+        sectionLocations = [
+            [-278, 372],
+            [64, 890],
+            [511, 1037],
+            [762, 908],
+            [198, 307],
+            [-12, 38],
+            [-85, -339],
+            [-150, -1042],
+            [-318, -991],
+            [-352, -119],
+        ]
+        for i in sectionLocations:
+            self.section_indeces.append(
+                findClosestIndex(i, self.maneuverable_waypoints)
+            )
+
         print(f"True total length: {len(self.maneuverable_waypoints) * 3}")
         print(f"1 lap length: {len(self.maneuverable_waypoints)}")
         print(f"Section indexes: {self.section_indeces}")
+        print("\nLap 1\n")
 
         # Receive location, rotation and velocity data
         vehicle_location = self.location_sensor.get_last_gym_observation()
@@ -108,23 +156,27 @@ class RoarCompetitionSolution:
                 section_ind - 2 <= self.current_waypoint_idx
                 and self.current_waypoint_idx <= section_ind + 2
                 and i != self.current_section
+                and self.num_ticks > 20
             ):
                 elapsed_ticks = self.num_ticks - self.section_start_ticks
                 self.section_start_ticks = self.num_ticks
                 self.current_section = i
+                if self.current_section == 0 and self.lapNum != 3:
+                    self.lapNum += 1
+                    print(f"\nLap {self.lapNum}\n")
                 print(f"Section {i}: {elapsed_ticks} ticks")
 
         new_waypoint_index = self.get_lookahead_index(current_speed_kmh)
         waypoint_to_follow = self.next_waypoint_smooth(current_speed_kmh)
 
-        # Proportional controller to steer the vehicle
+        # Pure pursuit controller to steer the vehicle
         steer_control = self.lat_controller.run(
             vehicle_location, vehicle_rotation, waypoint_to_follow
         )
 
-        # Proportional controller to control the vehicle's speed
+        # Custom controller to control the vehicle's speed
         waypoints_for_throttle = (self.maneuverable_waypoints * 2)[
-            new_waypoint_index : new_waypoint_index + 560
+            new_waypoint_index : new_waypoint_index + 300
         ]
         throttle, brake, gear = self.throttle_controller.run(
             waypoints_for_throttle,
@@ -133,42 +185,58 @@ class RoarCompetitionSolution:
             self.current_section,
         )
 
-        steerMultiplier = 1.1
-        if self.current_section in [27, 28]:
-            steerMultiplier = 1.4
-        elif self.current_section in range(36, 43, 1):
-            steerMultiplier = 5.5
-        elif self.current_section in [52, 53]:
-            steerMultiplier = 1.85
-
+        steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
+        
+        if self.current_section in [3]:
+            steerMultiplier *= 0.85
+        if self.current_section == 4:
+            steerMultiplier = min(1.305, steerMultiplier * 0.9)
+        if self.current_section in [6]:
+            # steerMultiplier *= 4.6
+            # steerMultiplier += 4.35
+            steerMultiplier = min(steerMultiplier * 5, 5.25)
+        if self.current_section == 9:
+            # if current_speed_kmh < 130:
+            #     steerMultiplier = 1.5
+            steerMultiplier = max(steerMultiplier, 1.575)
+        
         control = {
             "throttle": np.clip(throttle, 0, 1),
             "steer": np.clip(steer_control * steerMultiplier, -1, 1),
             "brake": np.clip(brake, 0, 1),
             "hand_brake": 0,
             "reverse": 0,
-            "target_gear": gear,
+            "target_gear": gear,  # Gears do not appear to have an impact on speed
         }
 
         currentWaypoint = self.maneuverable_waypoints[
             self.current_waypoint_idx
         ].location
 
-        # NOTE uncomment for debug printing
-        if self.num_ticks % 5 == 0:
-            print(
-                f"- Target waypoint: ({currentWaypoint[0]:.2f}, {currentWaypoint[1]:.2f}) \n\
-Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) \n\
-Distance to waypoint: {math.sqrt((currentWaypoint[0] - vehicle_location[0]) ** 2 + (currentWaypoint[1] - vehicle_location[1]) ** 2):.3f}\n"
-            )
+        if useDebug:
+            debugData[self.num_ticks] = {}
+            debugData[self.num_ticks]["loc"] = [
+                round(currentWaypoint[0], 3),
+                round(currentWaypoint[1], 3),
+            ]
+            debugData[self.num_ticks]["throttle"] = round(float(control["throttle"]), 3)
+            debugData[self.num_ticks]["brake"] = round(float(control["brake"]), 3)
+            debugData[self.num_ticks]["steer"] = round(float(control["steer"]), 10)
+            debugData[self.num_ticks]["speed"] = round(current_speed_kmh, 3)
 
-            print(
-                f"--- Speed: {current_speed_kmh:.2f} kph \n\
-Throttle: {throttle:.3f} \n\
-Brake: {brake:.3f} \n\
-Steer: {steer_control:.10f} \n\
-Current waypoint index: {self.current_waypoint_idx} in sector {self.current_section}\n"
-            )
+            if useDebugPrinting and self.num_ticks % 5 == 0:
+                print(
+                    f"- Target waypoint: ({waypoint_to_follow.location[0]:.2f}, {waypoint_to_follow.location[1]:.2f}) index {new_waypoint_index} \n\
+Current location: ({vehicle_location[0]:.2f}, {vehicle_location[1]:.2f}) index {self.current_waypoint_idx} section {self.current_section} \n\
+Distance to target waypoint: {math.sqrt((waypoint_to_follow.location[0] - vehicle_location[0]) ** 2 + (waypoint_to_follow.location[1] - vehicle_location[1]) ** 2):.3f}\n"
+                )
+
+                print(
+                    f"--- Speed: {current_speed_kmh:.2f} kph \n\
+Throttle: {control['throttle']:.3f} \n\
+Brake: {control['brake']:.3f} \n\
+Steer: {control['steer']:.10f} \n"
+                )
 
         await self.vehicle.apply_action(control)
         return control
@@ -178,8 +246,8 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         Returns the number of waypoints to look ahead based on the speed the car is currently going
         """
         speed_to_lookahead_dict = {
-            90: 8,
-            110: 12,
+            90: 9,
+            110: 11,
             130: 14,
             160: 18,
             180: 22,
@@ -192,7 +260,7 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         # NOTE does not work as well as the dictionary lookahead method, likely to cause crashes.
 
         # speedBoundList = [0, 90, 110, 130, 160, 180, 200, 250, 300]
-        # lookaheadList = [3, 8, 11, 13, 18, 22, 25, 28, 32]
+        # lookaheadList = [5, 11, 13, 15, 18, 22, 25, 28, 32]
 
         # interpolationFunction = interp1d(speedBoundList, lookaheadList)
         # return int(interpolationFunction(speed))
@@ -200,12 +268,15 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         for speed_upper_bound, num_points in speed_to_lookahead_dict.items():
             if speed < speed_upper_bound:
                 return num_points
+        return 8
 
     def get_lookahead_index(self, speed):
         """
         Adds the lookahead waypoint to the current waypoint and normalizes it so that the value does not go out of bounds
         """
         num_waypoints = self.get_lookahead_value(speed)
+        # if self.current_section == 9:
+        #     num_waypoints -= 1
         # print("speed " + str(speed)
         #       + " cur_ind " + str(self.current_waypoint_idx)
         #       + " num_points " + str(num_waypoints)
@@ -214,17 +285,17 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
             self.maneuverable_waypoints
         )
 
-    def get_lateral_pid_config(self):
-        """
-        Returns the PID values for the lateral (steering) PID
-        """
-        with open(
-            f"{os.path.dirname(__file__)}\\configs\\LatPIDConfig.json", "r"
-        ) as file:
-            config = json.load(file)
-        return config
+    # def get_lateral_pid_config(self):
+    #     """
+    #     Returns the PID values for the lateral (steering) PID
+    #     """
+    #     with open(
+    #         f"{os.path.dirname(__file__)}\\configs\\LatPIDConfig.json", "r"
+    #     ) as file:
+    #         config = json.load(file)
+    #     return config
 
-    # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py
+    # The idea and code for averaging points is from smooth_waypoint_following_local_planner.py (Summer 2023)
     def next_waypoint_smooth(self, current_speed: float):
         """
         If the speed is higher than 70, 'smooth out' the path that the car will take
@@ -243,23 +314,32 @@ Current waypoint index: {self.current_waypoint_idx} in sector {self.current_sect
         """
         next_waypoint_index = self.get_lookahead_index(current_speed)
         lookahead_value = self.get_lookahead_value(current_speed)
+        num_points = lookahead_value * 2
 
         # Section specific tuning
-        if self.current_section in [9, 10]:
-            num_points = lookahead_value // 2
-        elif self.current_section in [13, 14]:
-            num_points = lookahead_value * 3
-        elif self.current_section in [25, 27]:
-            num_points = lookahead_value
-        elif self.current_section in [28]:
-            num_points = lookahead_value * 2
-        elif self.current_section in range(36, 43, 1):
-            num_points = 20
-            next_waypoint_index = self.current_waypoint_idx + 20
-        elif self.current_section in [51, 52, 53]:
-            num_points = lookahead_value * 3 // 5
-        else:
-            num_points = lookahead_value * 2
+        if self.current_section == 0:
+            num_points = round(lookahead_value * 1.5)
+        if self.current_section == 1:
+            num_points = 0
+        # if self.current_section == 3:
+        #     num_points = round(lookahead_value * 2.25)
+        if self.current_section == 4:
+            # num_points = round(lookahead_value * 0.725)
+            num_points = lookahead_value - 4
+        if self.current_section == 5:
+            num_points = round(lookahead_value * 1.5)
+        if self.current_section == 6:
+            # num_points = round(lookahead_value * 0.4)
+            num_points = 0
+            next_waypoint_index = self.current_waypoint_idx + 21
+            # num_points = round(lookahead_value * 0.8)
+        # if self.current_section == 7:
+        #     num_points = round(lookahead_value * 1.25)
+        if self.current_section == 9:
+            (self.current_waypoint_idx + lookahead_value - 4) % len(
+                self.maneuverable_waypoints
+            )
+            num_points = 0
 
         start_index_for_avg = (next_waypoint_index - (num_points // 2)) % len(
             self.maneuverable_waypoints
