@@ -92,14 +92,25 @@ class ThrottleController:
             # at high speed use larger spacing between points to look further ahead and detect wide turns.
             r4 = self.get_radius(
                 [
-                    nextWaypoint[self.close_index],
-                    nextWaypoint[self.close_index + 3],
-                    nextWaypoint[self.close_index + 6],
+                    nextWaypoint[self.mid_index],
+                    nextWaypoint[self.mid_index + 2],
+                    nextWaypoint[self.mid_index + 4],
                 ]
             )
             target_speed4 = self.get_target_speed(r4, current_section)
             speed_data.append(
                 self.speed_for_turn(close_distance, target_speed4, current_speed)
+            )
+            r5 = self.get_radius(
+                [
+                    nextWaypoint[self.close_index],
+                    nextWaypoint[self.close_index + 3],
+                    nextWaypoint[self.close_index + 6],
+                ]
+            )
+            target_speed5 = self.get_target_speed(r5, current_section)
+            speed_data.append(
+                self.speed_for_turn(close_distance, target_speed5, current_speed)
             )
 
         update = self.select_speed(speed_data)
@@ -397,7 +408,7 @@ class ThrottleController:
             float: The maximum speed the car can go around the corner at
         """
 
-        mu = 2.2
+        mu = 2.4
 
         if radius >= self.max_radius:
             return self.max_speed
@@ -411,9 +422,9 @@ class ThrottleController:
         if current_section == 4:
             mu = 2.3
         if current_section in [6]:
-            mu = 2.525
+            mu = 2.7
         if current_section == 9:
-            mu = 2.0
+            mu = 2.3
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
 
