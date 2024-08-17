@@ -9,7 +9,7 @@ import pygame
 
 WAYPOINT_DISTANCE = 2.0
 WAYPOINT_LANE_WIDTH = 12.0
-
+startLoc = [-283.79998779296875, 391.6999816894531, 0.5999999642372131]
 
 class ManualControlViewer:
     def __init__(self):
@@ -63,10 +63,12 @@ class ManualControlViewer:
                 return None
 
         pressed_keys = pygame.key.get_pressed()
-        # if pressed_keys[pygame.K_UP]:
-        #     new_control['throttle'] = 0.4
+        new_control["throttle"] = 0.45
+        if pressed_keys[pygame.K_UP]:
+            new_control['throttle'] = 0.7
         if pressed_keys[pygame.K_DOWN]:
-            new_control["brake"] = 0.2
+            new_control["reverse"] = 1
+            new_control["throttle"] = 0
         if pressed_keys[pygame.K_LEFT]:
             new_control["steer"] = -0.2
         if pressed_keys[pygame.K_RIGHT]:
@@ -75,7 +77,8 @@ class ManualControlViewer:
             new_control["steer"] = -0.05
         if pressed_keys[pygame.K_d]:
             new_control["steer"] = 0.05
-        new_control["throttle"] = 0.45
+        if pressed_keys[pygame.K_s]:
+            new_control["throttle"] = 0.3
 
         image_surface = pygame.image.fromstring(
             image_pil.tobytes(), image_pil.size, image_pil.mode
@@ -110,8 +113,10 @@ async def main():
     # spawn_point, spawn_rpy = carla_world.spawn_points[
     #     np.random.randint(len(carla_world.spawn_points))
     # ]
+    
+    spawnPointNum = int(input("Choose a spawn point number (0 - 4): "))
 
-    spawn_point, spawn_rpy = carla_world.spawn_points[0]
+    spawn_point, spawn_rpy = carla_world.spawn_points[spawnPointNum]
 
     print("Spawning vehicle at", spawn_point, spawn_rpy)
 
@@ -176,17 +181,17 @@ async def main():
                     closest_waypoint = carla_world.maneuverable_waypoints[
                         closest_waypoint_idx
                     ]
-                    if closest_waypoint not in waypoints:
+                    if closest_waypoint not in waypoints and not is_collecting:
                         to_add = closest_waypoint
                 if to_add is not None:
                     print("Adding waypoint", to_add)
                     waypoints.append(to_add)
-                dist_to_first_waypoint = np.linalg.norm(
-                    current_location[:2] - waypoints[0].location[:2]
+                dist_to_start = np.linalg.norm(
+                    current_location[:2] - startLoc[:2]
                 )
-                if dist_to_first_waypoint < 100:
-                    print("Distance to first waypoint", dist_to_first_waypoint)
-                    if dist_to_first_waypoint < 3 and len(waypoints) > 100:
+                if dist_to_start < 100:
+                    print("Distance to start", dist_to_start)
+                    if dist_to_start < 4 and len(waypoints) > 100:
                         is_collecting = False
                         print("Lap completed")
 

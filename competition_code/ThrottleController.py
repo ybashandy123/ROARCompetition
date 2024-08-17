@@ -18,7 +18,7 @@ class ThrottleController:
     def __init__(self):
         self.max_radius = 10000
         self.max_speed = 300
-        self.intended_target_distance = [0, 30, 60, 90, 120, 150, 180]
+        self.intended_target_distance = [0, 30, 60, 90, 120, 140, 170]
         self.target_distance = [0, 30, 60, 90, 120, 150, 180]
         self.close_index = 0
         self.mid_index = 1
@@ -41,9 +41,9 @@ class ThrottleController:
         throttle, brake = self.get_throttle_and_brake(
             current_location, current_speed, current_section, waypoints
         )
-        gear = max(1, (int)(current_speed**1.15 / 96))
-        # gear = max(1, int(current_speed / 60))
-        if throttle == -1:
+        # gear = max(1, (int)(math.log(current_speed + 0.00001, 5)))
+        gear = max(1, int(current_speed / 60))
+        if throttle < 0:
             gear = -1
 
         # self.dprint("--- " + str(throttle) + " " + str(brake)
@@ -121,13 +121,15 @@ class ThrottleController:
         """
         Converts speed data into throttle and brake values
         """
-        percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
 
         # self.dprint("dist=" + str(round(speed_data.distance_to_section)) + " cs=" + str(round(speed_data.current_speed, 2))
         #             + " ts= " + str(round(speed_data.target_speed_at_distance, 2))
         #             + " maxs= " + str(round(speed_data.recommended_speed_now, 2)) + " pcnt= " + str(round(percent_of_max, 2)))
-
-        percent_change_per_tick = 0.07  # speed drop for one time-tick of braking
+        
+        percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
+        speed_change_per_tick = 2.5 # Speed decrease in kph per tick
+        percent_change_per_tick = 0.075  # speed drop for one time-tick of braking
+        true_percent_change_per_tick = round(speed_change_per_tick / (speed_data.current_speed + 0.001), 5)
         speed_up_threshold = 0.9
         throttle_decrease_multiple = 0.7
         throttle_increase_multiple = 1.25
@@ -135,13 +137,15 @@ class ThrottleController:
         percent_speed_change = (speed_data.current_speed - self.previous_speed) / (
             self.previous_speed + 0.0001
         )  # avoid division by zero
+        speed_change = round(speed_data.current_speed - self.previous_speed, 3)
 
         if percent_of_max > 1:
             # Consider slowing down
-            if speed_data.current_speed > 200:  # Brake earlier at higher speeds
-                brake_threshold_multiplier = 0.9
+            # if speed_data.current_speed > 200:  # Brake earlier at higher speeds
+            #     brake_threshold_multiplier = 0.9
+            
             if percent_of_max > 1 + (
-                brake_threshold_multiplier * percent_change_per_tick
+                brake_threshold_multiplier * true_percent_change_per_tick
             ):
                 if self.brake_ticks > 0:
                     self.dprint(
@@ -151,13 +155,12 @@ class ThrottleController:
                         + str(self.brake_ticks)
                     )
                     return -1, 1
+                
                 # if speed is not decreasing fast, hit the brake.
-                if self.brake_ticks <= 0 and not self.isSpeedDroppingFast(
-                    percent_change_per_tick, speed_data.current_speed
-                ):
+                if self.brake_ticks <= 0 and speed_change < 1.5:
                     # start braking, and set for how many ticks to brake
-                    self.brake_ticks = math.floor(
-                        (percent_of_max - 1) / percent_change_per_tick
+                    self.brake_ticks = round(
+                        (speed_data.current_speed - speed_data.recommended_speed_now) / speed_change_per_tick
                     )
                     # self.brake_ticks = 1, or (1 or 2 but not more)
                     self.dprint(
@@ -167,6 +170,7 @@ class ThrottleController:
                         + str(self.brake_ticks)
                     )
                     return -1, 1
+                
                 else:
                     # speed is already dropping fast, ok to throttle because the effect of throttle is delayed
                     self.dprint(
@@ -178,9 +182,7 @@ class ThrottleController:
                     self.brake_ticks = 0  # done slowing down. clear brake_ticks
                     return 1, 0
             else:
-                if self.isSpeedDroppingFast(
-                    percent_change_per_tick, speed_data.current_speed
-                ):
+                if speed_change >= 1.5:
                     # speed is already dropping fast, ok to throttle because the effect of throttle is delayed
                     self.dprint(
                         "tb: tick "
@@ -195,8 +197,9 @@ class ThrottleController:
                 throttle_to_maintain = self.get_throttle_to_maintain_speed(
                     speed_data.current_speed
                 )
+                
                 if percent_of_max > 1.02 or percent_speed_change > (
-                    -percent_change_per_tick / 2
+                    -true_percent_change_per_tick / 2
                 ):
                     self.dprint(
                         "tb: tick "
@@ -214,9 +217,7 @@ class ThrottleController:
         else:
             self.brake_ticks = 0  # done slowing down. clear brake_ticks
             # Speed up
-            if self.isSpeedDroppingFast(
-                percent_change_per_tick, speed_data.current_speed
-            ):
+            if speed_change >= 1.5:
                 # speed is dropping fast, ok to throttle because the effect of throttle is delayed
                 self.dprint(
                     "tb: tick "
@@ -236,7 +237,7 @@ class ThrottleController:
             throttle_to_maintain = self.get_throttle_to_maintain_speed(
                 speed_data.current_speed
             )
-            if percent_of_max < 0.98 or percent_speed_change < -0.01:
+            if percent_of_max < 0.98 or true_percent_change_per_tick < -0.01:
                 self.dprint(
                     "tb: tick "
                     + str(self.tick_counter)
@@ -285,23 +286,40 @@ class ThrottleController:
         """
         Returns a throttle value to maintain the current speed
         """
-        throttle = 0.65 + current_speed / 500
+        throttle = 0.75 + current_speed / 500
         return throttle
 
     def speed_for_turn(
         self, distance: float, target_speed: float, current_speed: float
     ):
+        """Generates a SpeedData object with the target speed for the far
+
+        Args:
+            distance (float): Distance from the start of the curve
+            target_speed (float): Target speed of the curve
+            current_speed (float): Current speed of the car
+
+        Returns:
+            SpeedData: A SpeedData object containing the distance to the corner, current speed, target speed, and max speed
         """
-        Takes in a target speed and distance and produces a speed that the car should target. Returns a SpeedData object
-        """
+        # Takes in a target speed and distance and produces a speed that the car should target. Returns a SpeedData object
+        
         d = (1 / 675) * (target_speed**2) + distance
         max_speed = math.sqrt(825 * d)
         return SpeedData(distance, current_speed, target_speed, max_speed)
 
     def get_next_interesting_waypoints(self, current_location, more_waypoints):
+        """Returns a list of waypoints that are approximately as far as specified in intended_target_distance from the current location
+
+        Args:
+            current_location (roar_py_interface.RoarPyWaypoint): The current location of the car
+            more_waypoints ([roar_py_interface.RoarPyWaypoint]): A list of waypoints
+
+        Returns:
+            [roar_py_interface.RoarPyWaypoint]: A list of waypoints within specified distances of the car
         """
-        Takes the current location of the car and returns a new list of waypoints that are close to the car
-        """
+        # Returns a list of waypoints that are approximately as far as the given in intended_target_distance from the current location
+        
         # return a list of points with distances approximately as given
         # in intended_target_distance[] from the current location.
         points = []
@@ -331,10 +349,16 @@ class ThrottleController:
         self.dprint("wp dist " + str(dist))
         return points
 
-    def get_radius(self, wp):
+    def get_radius(self, wp: [roar_py_interface.RoarPyWaypoint]):
+        """Returns the radius of a curve given 3 waypoints using the Menger Curvature Formula
+
+        Args:
+            wp ([roar_py_interface.RoarPyWaypoint]): A list of 3 RoarPyWaypoints
+
+        Returns:
+            float: The radius of the curve made by the 3 given waypoints
         """
-        Gets the radius of a turn given 3 waypoints by using the Menger Curve Formula
-        """
+
         point1 = (wp[0].location[0], wp[0].location[1])
         point2 = (wp[1].location[0], wp[1].location[1])
         point3 = (wp[2].location[0], wp[2].location[1])
@@ -343,7 +367,9 @@ class ThrottleController:
         len_side_1 = round(math.dist(point1, point2), 3)
         len_side_2 = round(math.dist(point2, point3), 3)
         len_side_3 = round(math.dist(point1, point3), 3)
-        small_num = 0.01
+
+        small_num = 2
+
         if len_side_1 < small_num or len_side_2 < small_num or len_side_3 < small_num:
             return self.max_radius
 
@@ -354,24 +380,43 @@ class ThrottleController:
         area_squared = sp * (sp - len_side_1) * (sp - len_side_2) * (sp - len_side_3)
         if area_squared < small_num:
             return self.max_radius
+
         # Calculating curvature using Menger curvature formula
         radius = (len_side_1 * len_side_2 * len_side_3) / (4 * math.sqrt(area_squared))
+
         return radius
 
-    def get_target_speed(self, radius: float, current_section):
+    def get_target_speed(self, radius: float, current_section: int):
+        """Returns a target speed based on the radius of the turn and the section it is in
+
+        Args:
+            radius (float): The calculated radius of the turn
+            current_section (int): The current section of the track the car is in
+
+        Returns:
+            float: The maximum speed the car can go around the corner at
         """
-        Returns a target speed based off of the radius of the turn
-        """
+
+        mu = 2.2
+
         if radius >= self.max_radius:
             return self.max_speed
-        mu = 2.0
-        if current_section == 6:
-            mu = 1.2
-        if current_section == 7:
-            mu = 1.7
+
+        # if current_section == 1:
+        #     mu = 2.2
+        if current_section == 2:
+            mu = 3.15
+        if current_section == 3:
+            mu = 3.1
+        if current_section == 4:
+            mu = 2.3
+        if current_section in [6]:
+            mu = 2.525
         if current_section == 9:
-            mu = 1.85
+            mu = 2.0
+
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
+
         return max(
             20, min(target_speed, self.max_speed)
         )  # clamp between 20 and max_speed
