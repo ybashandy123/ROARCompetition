@@ -190,15 +190,17 @@ class RoarCompetitionSolution:
         if self.current_section in [3]:
             steerMultiplier *= 0.85
         if self.current_section == 4:
-            steerMultiplier = min(1.305, steerMultiplier * 0.9)
+            steerMultiplier = min(1.33, steerMultiplier)
         if self.current_section in [6]:
             # steerMultiplier *= 4.6
             # steerMultiplier += 4.35
             steerMultiplier = min(steerMultiplier * 5, 5.25)
+        if self.current_section == 7:
+            steerMultiplier *= 2
         if self.current_section == 9:
             # if current_speed_kmh < 130:
             #     steerMultiplier = 1.5
-            steerMultiplier = max(steerMultiplier, 1.6)
+            steerMultiplier = max(steerMultiplier, 1.5)
         
         control = {
             "throttle": np.clip(throttle, 0, 1),
@@ -327,14 +329,14 @@ Steer: {control['steer']:.10f} \n"
             # num_points = round(lookahead_value * 0.725)
             num_points = lookahead_value - 4
         if self.current_section == 5:
-            num_points = round(lookahead_value * 1.5)
+            num_points = round(lookahead_value * 1.35)
         if self.current_section == 6:
             # num_points = round(lookahead_value * 0.4)
             num_points = 0
             next_waypoint_index = self.current_waypoint_idx + 21
             # num_points = round(lookahead_value * 0.8)
-        # if self.current_section == 7:
-        #     num_points = round(lookahead_value * 1.25)
+        if self.current_section == 7:
+            num_points = round(lookahead_value * 1.25)
         if self.current_section == 9:
             (self.current_waypoint_idx + lookahead_value - 4) % len(
                 self.maneuverable_waypoints
