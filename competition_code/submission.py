@@ -338,7 +338,7 @@ Steer: {control['steer']:.10f} \n"
         if self.current_section == 7:
             num_points = round(lookahead_value * 1.25)
         if self.current_section == 9:
-            (self.current_waypoint_idx + lookahead_value - 4) % len(
+            (self.current_waypoint_idx + 8) % len(
                 self.maneuverable_waypoints
             )
             num_points = 0
