@@ -188,19 +188,19 @@ class RoarCompetitionSolution:
         steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
         
         if self.current_section in [3]:
-            steerMultiplier *= 0.85
+            steerMultiplier *= 0.9
         if self.current_section == 4:
             steerMultiplier = min(1.4, steerMultiplier * 1.6)
         if self.current_section in [6]:
             # steerMultiplier *= 4.6
             # steerMultiplier += 4.35
-            steerMultiplier = min(steerMultiplier * 5, 5.25)
+            steerMultiplier = min(steerMultiplier * 5, 5.35)
         if self.current_section == 7:
-            steerMultiplier *= 1.75
+            steerMultiplier *= 2
         if self.current_section == 9:
             # if current_speed_kmh < 130:
             #     steerMultiplier = 1.5
-            steerMultiplier = max(steerMultiplier, 1.575)
+            steerMultiplier = max(steerMultiplier, 1.6)
             # steerMultiplier *= 1.9
         
         control = {
