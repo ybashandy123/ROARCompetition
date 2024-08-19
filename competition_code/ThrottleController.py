@@ -90,16 +90,29 @@ class ThrottleController:
 
         if current_speed > 100:
             # at high speed use larger spacing between points to look further ahead and detect wide turns.
-            r4 = self.get_radius(
+            if current_section != 9:
+                r4 = self.get_radius(
+                    [
+                        nextWaypoint[self.mid_index],
+                        nextWaypoint[self.mid_index + 2],
+                        nextWaypoint[self.mid_index + 4],
+                    ]
+                )
+                target_speed4 = self.get_target_speed(r4, current_section)
+                speed_data.append(
+                    self.speed_for_turn(close_distance, target_speed4, current_speed)
+                )
+                
+            r5 = self.get_radius(
                 [
                     nextWaypoint[self.close_index],
                     nextWaypoint[self.close_index + 3],
                     nextWaypoint[self.close_index + 6],
                 ]
             )
-            target_speed4 = self.get_target_speed(r4, current_section)
+            target_speed5 = self.get_target_speed(r5, current_section)
             speed_data.append(
-                self.speed_for_turn(close_distance, target_speed4, current_speed)
+                self.speed_for_turn(close_distance, target_speed5, current_speed)
             )
 
         update = self.select_speed(speed_data)
@@ -127,7 +140,7 @@ class ThrottleController:
         #             + " maxs= " + str(round(speed_data.recommended_speed_now, 2)) + " pcnt= " + str(round(percent_of_max, 2)))
         
         percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
-        speed_change_per_tick = 2.5 # Speed decrease in kph per tick
+        speed_change_per_tick = 2.4 # Speed decrease in kph per tick
         percent_change_per_tick = 0.075  # speed drop for one time-tick of braking
         true_percent_change_per_tick = round(speed_change_per_tick / (speed_data.current_speed + 0.001), 5)
         speed_up_threshold = 0.9
@@ -141,8 +154,8 @@ class ThrottleController:
 
         if percent_of_max > 1:
             # Consider slowing down
-            # if speed_data.current_speed > 200:  # Brake earlier at higher speeds
-            #     brake_threshold_multiplier = 0.9
+            if speed_data.current_speed > 200:  # Brake earlier at higher speeds
+                brake_threshold_multiplier = 0.9
             
             if percent_of_max > 1 + (
                 brake_threshold_multiplier * true_percent_change_per_tick
@@ -161,7 +174,7 @@ class ThrottleController:
                     # start braking, and set for how many ticks to brake
                     self.brake_ticks = round(
                         (speed_data.current_speed - speed_data.recommended_speed_now) / speed_change_per_tick
-                    )
+                    ) + 2
                     # self.brake_ticks = 1, or (1 or 2 but not more)
                     self.dprint(
                         "tb: tick "
@@ -397,7 +410,7 @@ class ThrottleController:
             float: The maximum speed the car can go around the corner at
         """
 
-        mu = 2.2
+        mu = 2.4
 
         if radius >= self.max_radius:
             return self.max_speed
@@ -407,13 +420,13 @@ class ThrottleController:
         if current_section == 2:
             mu = 3.15
         if current_section == 3:
-            mu = 3.1
-        if current_section == 4:
-            mu = 2.3
+            mu = 3.15
+        # if current_section == 4:
+        #     mu = 2.3
         if current_section in [6]:
-            mu = 2.525
+            mu = 3.1
         if current_section == 9:
-            mu = 2.0
+            mu = 2.2
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
 
