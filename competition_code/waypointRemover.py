@@ -11,7 +11,7 @@ newWaypoints = []
 
 for i in range(2660):
     newWaypoints.append(waypoints[i])
-    
+
 np.savez_compressed(
     "modifiedWaypoints.npz",
     **roar_py_interface.RoarPyWaypoint.save_waypoint_list(newWaypoints),

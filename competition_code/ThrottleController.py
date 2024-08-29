@@ -102,7 +102,7 @@ class ThrottleController:
                 speed_data.append(
                     self.speed_for_turn(close_distance, target_speed4, current_speed)
                 )
-                
+
             r5 = self.get_radius(
                 [
                     nextWaypoint[self.close_index],
@@ -138,11 +138,13 @@ class ThrottleController:
         # self.dprint("dist=" + str(round(speed_data.distance_to_section)) + " cs=" + str(round(speed_data.current_speed, 2))
         #             + " ts= " + str(round(speed_data.target_speed_at_distance, 2))
         #             + " maxs= " + str(round(speed_data.recommended_speed_now, 2)) + " pcnt= " + str(round(percent_of_max, 2)))
-        
+
         percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
-        speed_change_per_tick = 2.4 # Speed decrease in kph per tick
+        speed_change_per_tick = 2.4  # Speed decrease in kph per tick
         percent_change_per_tick = 0.075  # speed drop for one time-tick of braking
-        true_percent_change_per_tick = round(speed_change_per_tick / (speed_data.current_speed + 0.001), 5)
+        true_percent_change_per_tick = round(
+            speed_change_per_tick / (speed_data.current_speed + 0.001), 5
+        )
         speed_up_threshold = 0.9
         throttle_decrease_multiple = 0.7
         throttle_increase_multiple = 1.25
@@ -156,7 +158,7 @@ class ThrottleController:
             # Consider slowing down
             if speed_data.current_speed > 200:  # Brake earlier at higher speeds
                 brake_threshold_multiplier = 0.9
-            
+
             if percent_of_max > 1 + (
                 brake_threshold_multiplier * true_percent_change_per_tick
             ):
@@ -168,13 +170,20 @@ class ThrottleController:
                         + str(self.brake_ticks)
                     )
                     return -1, 1
-                
+
                 # if speed is not decreasing fast, hit the brake.
                 if self.brake_ticks <= 0 and speed_change < 1.5:
                     # start braking, and set for how many ticks to brake
-                    self.brake_ticks = round(
-                        (speed_data.current_speed - speed_data.recommended_speed_now) / speed_change_per_tick
-                    ) + 2
+                    self.brake_ticks = (
+                        round(
+                            (
+                                speed_data.current_speed
+                                - speed_data.recommended_speed_now
+                            )
+                            / speed_change_per_tick
+                        )
+                        + 2
+                    )
                     # self.brake_ticks = 1, or (1 or 2 but not more)
                     self.dprint(
                         "tb: tick "
@@ -183,7 +192,7 @@ class ThrottleController:
                         + str(self.brake_ticks)
                     )
                     return -1, 1
-                
+
                 else:
                     # speed is already dropping fast, ok to throttle because the effect of throttle is delayed
                     self.dprint(
@@ -210,7 +219,7 @@ class ThrottleController:
                 throttle_to_maintain = self.get_throttle_to_maintain_speed(
                     speed_data.current_speed
                 )
-                
+
                 if percent_of_max > 1.02 or percent_speed_change > (
                     -true_percent_change_per_tick / 2
                 ):
@@ -316,7 +325,7 @@ class ThrottleController:
             SpeedData: A SpeedData object containing the distance to the corner, current speed, target speed, and max speed
         """
         # Takes in a target speed and distance and produces a speed that the car should target. Returns a SpeedData object
-        
+
         d = (1 / 675) * (target_speed**2) + distance
         max_speed = math.sqrt(825 * d)
         return SpeedData(distance, current_speed, target_speed, max_speed)
@@ -332,7 +341,7 @@ class ThrottleController:
             [roar_py_interface.RoarPyWaypoint]: A list of waypoints within specified distances of the car
         """
         # Returns a list of waypoints that are approximately as far as the given in intended_target_distance from the current location
-        
+
         # return a list of points with distances approximately as given
         # in intended_target_distance[] from the current location.
         points = []
