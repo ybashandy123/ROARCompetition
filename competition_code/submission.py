@@ -17,7 +17,7 @@ import atexit
 
 # from scipy.interpolate import interp1d
 
-useDebug = False
+useDebug = True
 useDebugPrinting = False
 debugData = {}
 
@@ -201,21 +201,18 @@ class RoarCompetitionSolution:
             "reverse": 0,
             "target_gear": gear,  # Gears do not appear to have an impact on speed
         }
-
-        currentWaypoint = self.maneuverable_waypoints[
-            self.current_waypoint_idx
-        ].location
-
+        
         if useDebug:
             debugData[self.num_ticks] = {}
             debugData[self.num_ticks]["loc"] = [
-                round(currentWaypoint[0], 3),
-                round(currentWaypoint[1], 3),
+                round(vehicle_location[0].item(), 3),
+                round(vehicle_location[1].item(), 3),
             ]
             debugData[self.num_ticks]["throttle"] = round(float(control["throttle"]), 3)
             debugData[self.num_ticks]["brake"] = round(float(control["brake"]), 3)
             debugData[self.num_ticks]["steer"] = round(float(control["steer"]), 10)
             debugData[self.num_ticks]["speed"] = round(current_speed_kmh, 3)
+            debugData[self.num_ticks]["lap"] = self.lapNum
 
             if useDebugPrinting and self.num_ticks % 5 == 0:
                 print(
