@@ -13,9 +13,9 @@ Official Run:
 
 Unofficial time over 10 runs:
 
-- Average: 325.765 seconds
+- Average: 325.55 seconds
 - Fastest: 325.250 seconds
-- Slowest: 326.050 seconds
+- Slowest: 325.850 seconds
 
 Reliability:
 

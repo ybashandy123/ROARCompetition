@@ -189,8 +189,8 @@ async def evaluate_solution(
             ]
         ),  # relative position
         np.array([0, 10 / 180.0 * np.pi, 0]),  # relative rotation
-        image_width=1280,
-        image_height=720,
+        image_width=960,
+        image_height=540,
     )
     location_sensor = vehicle.attach_location_in_world_sensor()
     velocity_sensor = vehicle.attach_velocimeter_sensor()

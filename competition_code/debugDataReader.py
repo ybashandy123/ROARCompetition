@@ -50,9 +50,9 @@ for i in data:
     throttleVal = data[i]["throttle"]
 
     if brakeVal > 0:
-        color = (brakeVal, 0, 0)
+        color = (brakeVal ** 2, 0, 0)
     else:
-        color = (0, throttleVal, 0)
+        color = (0, throttleVal ** 2, 0)
 
     x = data[i]["loc"][0]
     y = data[i]["loc"][1]
