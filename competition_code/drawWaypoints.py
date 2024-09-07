@@ -2,16 +2,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 import roar_py_interface
 from typing import List
-from matplotlib.backend_bases import MouseButton
+import os
+from progress.bar import IncrementalBar
+import transforms3d as tr3d
 
 baseSection = []
 replacementSection = []
 findTarget = False
+
+print("\nLoading Waypoints\n")
 waypoints = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
-    np.load("competition_code\\waypoints\\waypointsPrimary.npz")
+    np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypointsPrimary.npz")
+)
+track = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
+    np.load(f"{os.path.dirname(__file__)}\\waypoints\\Monza Original Waypoints.npz")
 )
 
-plt.figure(figsize=(12, 12))
+totalPoints = len(waypoints) + len(track)
+progressBar = IncrementalBar("Plotting points", max=totalPoints)
+
+plt.figure(figsize=(11, 11))
 plt.axis((-1100, 1100, -1100, 1100))
 plt.tight_layout()
 
@@ -32,8 +42,13 @@ for waypoint in track[:] if track is not None else []:
     )
     progressBar.next()
 
-    for i in additionalWaypoints:
-        plt.plot(i.location[0], i.location[1], "g^")
-        
-drawWaypoints(waypoints)
+for i in waypoints:
+    plt.plot(i.location[0], i.location[1], "ro")
+    progressBar.next()
+
+# for i in additionalWaypoints:
+#     plt.plot(i.location[0], i.location[1], "g^")
+
+progressBar.finish()
+print()
 plt.show()

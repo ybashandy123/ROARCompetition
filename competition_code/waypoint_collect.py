@@ -11,6 +11,7 @@ WAYPOINT_DISTANCE = 2.0
 WAYPOINT_LANE_WIDTH = 12.0
 startLoc = [-283.79998779296875, 391.6999816894531, 0.5999999642372131]
 
+
 class ManualControlViewer:
     def __init__(self):
         self.screen = None
@@ -65,7 +66,7 @@ class ManualControlViewer:
         pressed_keys = pygame.key.get_pressed()
         new_control["throttle"] = 0.45
         if pressed_keys[pygame.K_UP]:
-            new_control['throttle'] = 0.7
+            new_control["throttle"] = 0.7
         if pressed_keys[pygame.K_DOWN]:
             new_control["reverse"] = 1
             new_control["throttle"] = 0
@@ -113,7 +114,7 @@ async def main():
     # spawn_point, spawn_rpy = carla_world.spawn_points[
     #     np.random.randint(len(carla_world.spawn_points))
     # ]
-    
+
     spawnPointNum = int(input("Choose a spawn point number (0 - 4): "))
 
     spawn_point, spawn_rpy = carla_world.spawn_points[spawnPointNum]
@@ -186,9 +187,7 @@ async def main():
                 if to_add is not None:
                     print("Adding waypoint", to_add)
                     waypoints.append(to_add)
-                dist_to_start = np.linalg.norm(
-                    current_location[:2] - startLoc[:2]
-                )
+                dist_to_start = np.linalg.norm(current_location[:2] - startLoc[:2])
                 if dist_to_start < 100:
                     print("Distance to start", dist_to_start)
                     if dist_to_start < 4 and len(waypoints) > 100:

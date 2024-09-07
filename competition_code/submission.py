@@ -154,12 +154,12 @@ class RoarCompetitionSolution:
                 abs(self.current_waypoint_idx - section_ind) <= 2
                 and i != self.current_section
             ):
+                print(f"Section {i}: {self.num_ticks - self.section_start_ticks} ticks")
                 self.section_start_ticks = self.num_ticks
                 self.current_section = i
                 if self.current_section == 0 and self.lapNum != 3:
                     self.lapNum += 1
                     print(f"\nLap {self.lapNum}\n")
-                print(f"Section {i}: {self.num_ticks - self.section_start_ticks} ticks")
 
         nextWaypointIndex = self.get_lookahead_index(current_speed_kmh)
         waypoint_to_follow = self.next_waypoint_smooth(current_speed_kmh)

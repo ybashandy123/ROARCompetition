@@ -9,6 +9,7 @@ import transforms3d as tr3d
 data = json.load(open(f"{os.path.dirname(__file__)}\\debugData\\debugData.json"))
 lapMarkers = [".", "^", "s"]
 
+
 def distanceToWaypoint(currentWaypoint, firstWaypoint):
     return np.linalg.norm(currentWaypoint[:2] - firstWaypoint[:2])
 
@@ -47,11 +48,11 @@ for i in data:
     color = (0, 0, 0)
     brakeVal = data[i]["brake"]
     throttleVal = data[i]["throttle"]
-    
+
     if brakeVal > 0:
-        color = (brakeVal, 0, 0)
+        color = (brakeVal ** 2, 0, 0)
     else:
-        color = (0, throttleVal, 0)
+        color = (0, throttleVal ** 2, 0)
 
     x = data[i]["loc"][0]
     y = data[i]["loc"][1]
