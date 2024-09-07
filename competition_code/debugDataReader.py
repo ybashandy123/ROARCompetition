@@ -1,24 +1,48 @@
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
 import roar_py_interface
-from typing import List
-from matplotlib.backend_bases import MouseButton
 import json
 import os
+from progress.bar import IncrementalBar
+import transforms3d as tr3d
 
 data = json.load(open(f"{os.path.dirname(__file__)}\\debugData\\debugData.json"))
+lapMarkers = [".", "^", "s"]
 
 
 def distanceToWaypoint(currentWaypoint, firstWaypoint):
     return np.linalg.norm(currentWaypoint[:2] - firstWaypoint[:2])
 
 
-print("--- Generating Plot ---\n")
+print("\nLoading Waypoints\n")
 
-plt.figure(figsize=(12, 12))
+track = roar_py_interface.RoarPyWaypoint.load_waypoint_list(
+    np.load(f"{os.path.dirname(__file__)}\\waypoints\\Monza Original Waypoints.npz")
+)
+
+totalPoints = len(data) + len(track)
+progressBar = IncrementalBar("Plotting points", max=totalPoints)
+
+plt.figure(figsize=(11, 11))
 plt.axis((-1100, 1100, -1100, 1100))
-plt.margins(x=0, y=0)
+plt.tight_layout()
+
+for waypoint in track[:] if track is not None else []:
+    rep_line = waypoint.line_representation
+    rep_line = np.asarray(rep_line)
+    waypoint_heading = tr3d.euler.euler2mat(*waypoint.roll_pitch_yaw) @ np.array(
+        [1, 0, 0]
+    )
+    plt.plot(rep_line[:, 0], rep_line[:, 1], "k", linewidth=2)
+    plt.arrow(
+        waypoint.location[0],
+        waypoint.location[1],
+        waypoint_heading[0] * 1,
+        waypoint_heading[1] * 1,
+        width=0.25,
+        color="r",
+    )
+    progressBar.next()
 
 for i in data:
     color = (0, 0, 0)
@@ -30,11 +54,12 @@ for i in data:
     else:
         color = (0, throttleVal, 0)
 
-    if int(i) % 100 == 0:
-        print(f"Plotting point {i}")
+    x = data[i]["loc"][0]
+    y = data[i]["loc"][1]
 
-    plt.plot(data[i]["loc"][0], data[i]["loc"][1], "o", color=color)
+    plt.plot(x, y, lapMarkers[data[i]["lap"] - 1], color=color)
+    progressBar.next()
 
-print("\n--- Plot complete ---\n")
-plt.tight_layout()
+progressBar.finish()
+print()
 plt.show()

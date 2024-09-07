@@ -1,15 +1,15 @@
 # ROAR_Competition
 
-The submission by the BHS Racing team for the Summer 2024 ROAR Competition on the Monza map.
+The first place submission by the BHS Racing team for the Summer 2024 ROAR Competition on the Monza map.
 
 ## Requirements
 
-Requires `progress` module.
+Requires `progress` module and ROAR_PY
 
 ## Time spread
 
-Official Test Run:
-325.5 seconds
+Official Run:
+325.6 seconds
 
 Unofficial time over 10 runs:
 
@@ -32,3 +32,5 @@ To create new waypoints, you have to run the waypoint_collect.py file and select
 Then, you can either use these new waypoints as is or splice them into an existing waypoint file with waypointSplicer.py. Running waypointSplicer.py will display a graph of the base waypoint file (the file with the primary waypoints) and the new waypoints you want to substitute in. Click on the end points of the section you want to replace, or double click if you want to replace from that point to the end of the track.
 
 Using the new waypoints can be done in the `initialize` function of `ROARCompetitionSolution`.
+
+Collecting the track's points can be done with `collectBaseWaypoints.py`.

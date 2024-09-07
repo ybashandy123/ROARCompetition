@@ -31,6 +31,7 @@ for waypoint in track[:] if track is not None else []:
     waypoint_heading = tr3d.euler.euler2mat(*waypoint.roll_pitch_yaw) @ np.array(
         [1, 0, 0]
     )
+    plt.plot(rep_line[:, 0], rep_line[:, 1], "k", linewidth=2)
     plt.arrow(
         waypoint.location[0],
         waypoint.location[1],
@@ -39,7 +40,6 @@ for waypoint in track[:] if track is not None else []:
         width=0.5,
         color="r",
     )
-    plt.plot(rep_line[:, 0], rep_line[:, 1], "k")
     progressBar.next()
 
 for i in waypoints:
