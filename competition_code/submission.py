@@ -181,11 +181,14 @@ class RoarCompetitionSolution:
         )
 
         steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
-
+        
+        if self.current_section == 2:
+            steerMultiplier *= 1.2
         if self.current_section in [3]:
-            steerMultiplier *= 0.9
+            # steerMultiplier *= 0.9
+            steerMultiplier = np.clip(steerMultiplier * 2, 2.35, 3)
         if self.current_section == 4:
-            steerMultiplier = min(1.4, steerMultiplier * 1.6)
+            steerMultiplier = min(1.45, steerMultiplier * 1.65)
         if self.current_section in [6]:
             steerMultiplier = min(steerMultiplier * 5, 5.35)
         if self.current_section == 7:
@@ -307,6 +310,8 @@ Steer: {control['steer']:.10f} \n"
         # Section specific tuning
         if self.current_section == 0:
             num_points = round(lookahead_value * 1.5)
+        if self.current_section == 3:
+            next_waypoint_index = self.current_waypoint_idx + 20
         if self.current_section == 4:
             num_points = lookahead_value - 4
         if self.current_section == 5:
