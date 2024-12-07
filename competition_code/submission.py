@@ -186,14 +186,14 @@ class RoarCompetitionSolution:
             steerMultiplier *= 1.2
         if self.current_section in [3]:
             # steerMultiplier *= 0.9
-            steerMultiplier = np.clip(steerMultiplier * 1.75, 2.4, 3.5)
+            steerMultiplier = np.clip(steerMultiplier * 1.75, 2.3, 3.5)
         if self.current_section == 4:
             steerMultiplier = min(1.45, steerMultiplier * 1.65)
         if self.current_section == 5:
             steerMultiplier *= 1.1
         if self.current_section in [6]:
             # steerMultiplier = min(steerMultiplier * 5, 5.35)
-            steerMultiplier = np.clip(steerMultiplier * 5.35, 5.5, 7)
+            steerMultiplier = np.clip(steerMultiplier * 5.5, 5.5, 7)
         if self.current_section == 7:
             steerMultiplier *= 2
         if self.current_section == 9:
