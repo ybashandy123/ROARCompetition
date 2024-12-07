@@ -102,7 +102,7 @@ class RoarCompetitionSolution:
             [511, 1037],
             [762, 908],
             [198, 307],
-            [-12, 38],
+            [-11, 60],
             [-85, -339],
             [-150, -1042],
             [-318, -991],
@@ -181,13 +181,19 @@ class RoarCompetitionSolution:
         )
 
         steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
-
+        
+        if self.current_section == 2:
+            steerMultiplier *= 1.2
         if self.current_section in [3]:
-            steerMultiplier *= 0.9
+            # steerMultiplier *= 0.9
+            steerMultiplier = np.clip(steerMultiplier * 1.75, 2.3, 3.5)
         if self.current_section == 4:
-            steerMultiplier = min(1.4, steerMultiplier * 1.6)
+            steerMultiplier = min(1.45, steerMultiplier * 1.65)
+        if self.current_section == 5:
+            steerMultiplier *= 1.1
         if self.current_section in [6]:
-            steerMultiplier = min(steerMultiplier * 5, 5.35)
+            # steerMultiplier = min(steerMultiplier * 5, 5.35)
+            steerMultiplier = np.clip(steerMultiplier * 5.5, 5.5, 7)
         if self.current_section == 7:
             steerMultiplier *= 2
         if self.current_section == 9:
@@ -307,13 +313,17 @@ Steer: {control['steer']:.10f} \n"
         # Section specific tuning
         if self.current_section == 0:
             num_points = round(lookahead_value * 1.5)
+        if self.current_section == 3:
+            next_waypoint_index = self.current_waypoint_idx + 22
+            num_points = 35
         if self.current_section == 4:
             num_points = lookahead_value - 4
+            next_waypoint_index = self.current_waypoint_idx + 24
         if self.current_section == 5:
-            num_points = round(lookahead_value * 1.35)
+            num_points = round(lookahead_value * 1.2)
         if self.current_section == 6:
-            num_points = 4
-            next_waypoint_index = self.current_waypoint_idx + 21
+            num_points = 5
+            next_waypoint_index = self.current_waypoint_idx + 28
         if self.current_section == 7:
             num_points = round(lookahead_value * 1.25)
         if self.current_section == 9:

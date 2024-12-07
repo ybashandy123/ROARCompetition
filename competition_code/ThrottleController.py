@@ -140,10 +140,10 @@ class ThrottleController:
         #             + " maxs= " + str(round(speed_data.recommended_speed_now, 2)) + " pcnt= " + str(round(percent_of_max, 2)))
 
         percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
-        speed_change_per_tick = 2.4  # Speed decrease in kph per tick
+        avg_speed_change_per_tick = 2.4  # Speed decrease in kph per tick
         percent_change_per_tick = 0.075  # speed drop for one time-tick of braking
         true_percent_change_per_tick = round(
-            speed_change_per_tick / (speed_data.current_speed + 0.001), 5
+            avg_speed_change_per_tick / (speed_data.current_speed + 0.001), 5
         )
         speed_up_threshold = 0.9
         throttle_decrease_multiple = 0.7
@@ -156,8 +156,8 @@ class ThrottleController:
 
         if percent_of_max > 1:
             # Consider slowing down
-            if speed_data.current_speed > 200:  # Brake earlier at higher speeds
-                brake_threshold_multiplier = 0.9
+            # if speed_data.current_speed > 200:  # Brake earlier at higher speeds
+            #     brake_threshold_multiplier = 0.9
 
             if percent_of_max > 1 + (
                 brake_threshold_multiplier * true_percent_change_per_tick
@@ -172,7 +172,7 @@ class ThrottleController:
                     return -1, 1
 
                 # if speed is not decreasing fast, hit the brake.
-                if self.brake_ticks <= 0 and speed_change < 1.5:
+                if self.brake_ticks <= 0 and speed_change < 2.5:
                     # start braking, and set for how many ticks to brake
                     self.brake_ticks = (
                         round(
@@ -180,9 +180,8 @@ class ThrottleController:
                                 speed_data.current_speed
                                 - speed_data.recommended_speed_now
                             )
-                            / speed_change_per_tick
+                            / 3
                         )
-                        + 2
                     )
                     # self.brake_ticks = 1, or (1 or 2 but not more)
                     self.dprint(
@@ -204,7 +203,7 @@ class ThrottleController:
                     self.brake_ticks = 0  # done slowing down. clear brake_ticks
                     return 1, 0
             else:
-                if speed_change >= 1.5:
+                if speed_change >= 2.5:
                     # speed is already dropping fast, ok to throttle because the effect of throttle is delayed
                     self.dprint(
                         "tb: tick "
@@ -239,7 +238,7 @@ class ThrottleController:
         else:
             self.brake_ticks = 0  # done slowing down. clear brake_ticks
             # Speed up
-            if speed_change >= 1.5:
+            if speed_change >= 2.5:
                 # speed is dropping fast, ok to throttle because the effect of throttle is delayed
                 self.dprint(
                     "tb: tick "
@@ -419,19 +418,21 @@ class ThrottleController:
             float: The maximum speed the car can go around the corner at
         """
 
-        mu = 2.4
+        mu = 2.5
 
         if radius >= self.max_radius:
             return self.max_speed
 
         if current_section == 2:
-            mu = 3.15
+            mu = 3.35
         if current_section == 3:
-            mu = 3.15
+            mu = 3.3
+        if current_section == 4:
+            mu = 2.65
         if current_section == 6:
-            mu = 3.1
+            mu = 3.3
         if current_section == 9:
-            mu = 2.2
+            mu = 2.1
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
 
