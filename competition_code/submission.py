@@ -93,7 +93,7 @@ class RoarCompetitionSolution:
         self.maneuverable_waypoints = (
             roar_py_interface.RoarPyWaypoint.load_waypoint_list(
                 np.load(f"{os.path.dirname(__file__)}\\waypoints\\waypointsPrimary.npz")
-            )[50:]
+            )[35:]
         )
 
         sectionLocations = [
@@ -183,7 +183,7 @@ class RoarCompetitionSolution:
         steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
         
         if self.current_section == 2:
-            steerMultiplier *= 1.25
+            steerMultiplier *= 1.2
         if self.current_section in [3]:
             # steerMultiplier *= 0.9
             steerMultiplier = np.clip(steerMultiplier * 1.75, 2.3, 3.5)
@@ -317,14 +317,16 @@ Steer: {control['steer']:.10f} \n"
             next_waypoint_index = self.current_waypoint_idx + 22
             num_points = 35
         if self.current_section == 4:
-            num_points = lookahead_value - 2
+            num_points = lookahead_value + 5
             next_waypoint_index = self.current_waypoint_idx + 24
         if self.current_section == 5:
-            num_points = round(lookahead_value * 1.2)
+            # num_points = round(lookahead_value * 1.1)
+            num_points = lookahead_value
         if self.current_section == 6:
             num_points = 5
             next_waypoint_index = self.current_waypoint_idx + 28
         if self.current_section == 7:
+            # Jolt between sections 6 and 7 likely due to the differences in lookahead values and steering multipliers. 
             num_points = round(lookahead_value * 1.25)
         if self.current_section == 9:
             (self.current_waypoint_idx + 8) % len(self.maneuverable_waypoints)

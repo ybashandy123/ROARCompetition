@@ -428,7 +428,7 @@ class ThrottleController:
         if current_section == 3:
             mu = 3.3
         if current_section == 4:
-            mu = 2.75
+            mu = 2.85
         if current_section == 6:
             mu = 3.3
         if current_section == 9:
