@@ -97,16 +97,16 @@ class RoarCompetitionSolution:
         )
 
         sectionLocations = [
-            [-278, 372],
-            [64, 890],
-            [511, 1037],
-            [762, 908],
-            [198, 307],
-            [-11, 60],
-            [-85, -339],
-            [-150, -1042],
-            [-318, -991],
-            [-352, -119],
+            [-278, 372], # Section 0 start location
+            [64, 890], # Section 1 start location
+            [511, 1037], # Section 2 start location
+            [762, 908], # Section 3 start location
+            [198, 307], # Section 4 start location
+            [-11, 60], # Section 5 start location
+            [-85, -339], # Section 6 start location
+            [-150, -1042], # Section 7 start location 
+            [-318, -991], # Section 8 start location
+            [-352, -119], # Section 9 start location
         ]
         for i in sectionLocations:
             self.section_indeces.append(
@@ -183,7 +183,7 @@ class RoarCompetitionSolution:
         steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
         
         if self.current_section == 2:
-            steerMultiplier *= 1.2
+            steerMultiplier *= 1.25
         if self.current_section in [3]:
             # steerMultiplier *= 0.9
             steerMultiplier = np.clip(steerMultiplier * 1.75, 2.3, 3.5)
