@@ -104,7 +104,7 @@ class RoarCompetitionSolution:
             [198, 307], # Section 4 start location
             [-11, 60], # Section 5 start location
             [-85, -339], # Section 6 start location
-            [-150, -1042], # Section 7 start location 
+            [-210, -1060], # Section 7 start location 
             [-318, -991], # Section 8 start location
             [-352, -119], # Section 9 start location
         ]
@@ -317,7 +317,7 @@ Steer: {control['steer']:.10f} \n"
             next_waypoint_index = self.current_waypoint_idx + 22
             num_points = 35
         if self.current_section == 4:
-            num_points = lookahead_value - 4
+            num_points = lookahead_value - 2
             next_waypoint_index = self.current_waypoint_idx + 24
         if self.current_section == 5:
             num_points = round(lookahead_value * 1.2)
