@@ -10,7 +10,6 @@ import asyncio
 
 
 class Colors:
-    # Find full colors and effects here: https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
     CGREEN2 = "\033[92m"
     UNDERLINE = "\033[4m"
     CEND = "\33[0m"
@@ -29,7 +28,6 @@ class Colors:
     CVIOLET = "\33[35m"
     CBEIGE = "\33[36m"
     CWHITE = "\33[37m"
-    CORANGE = "\33[38;5;208m"
 
     CBLACKBG = "\33[40m"
     CREDBG = "\33[41m"
@@ -39,7 +37,6 @@ class Colors:
     CVIOLETBG = "\33[45m"
     CBEIGEBG = "\33[46m"
     CWHITEBG = "\33[47m"
-    CORANGEBG = "\33[48;5;208m"
 
     CGREY = "\33[90m"
     CRED2 = "\33[91m"
@@ -272,9 +269,7 @@ async def evaluate_solution(
                 is None
             ):
                 vehicle.close()
-                return {
-                    "elapsed_time": start_time - world.last_tick_elapsed_seconds
-                }
+                return None
 
         await solution.step()
         await world.step()
@@ -310,8 +305,8 @@ async def main():
 
 if __name__ == "__main__":
     try:
-        numRuns = abs(
-            int(input("Please enter the number of runs you would like to perform: "))
+        numRuns = abs(int(
+            input("Please enter the number of runs you would like to perform: "))
         )
     except:
         print("Invalid input detected. Defaulting to 1 run.")
@@ -322,23 +317,20 @@ if __name__ == "__main__":
     fastestLap = 10000
     slowestLap = 0
     failedLaps = 0
-    canceledLaps = 0
 
     for i in range(numRuns):
         print(f"\n{Colors.CBOLD}\tRun {i + 1} of {numRuns}{Colors.CEND}\n")
         lapTimes.append((asyncio.run(main())))
 
     for i in lapTimes:
-        if i != None and i >= 0:
+        if i != None:
             lapTimeTotal += i
             if i < fastestLap:
                 fastestLap = i
             if i > slowestLap:
                 slowestLap = i
-        elif i is None:
+        else:
             failedLaps += 1
-        else: 
-            canceledLaps += 1
 
     print(f"\nRun times: ")
 
@@ -347,8 +339,6 @@ if __name__ == "__main__":
 
         if lapTimes[i] == None:
             text += f"{Colors.CREDBG2}Crashed{Colors.CEND}"
-        elif lapTimes[i] < 0:
-            text += f"{Colors.CORANGEBG}Run ended by user{Colors.CEND}"
         elif lapTimes[i] == fastestLap:
             text += f"{Colors.CGREEN2}{fastestLap:.3f}{Colors.CEND} seconds"
         elif lapTimes[i] == slowestLap:
@@ -360,7 +350,7 @@ if __name__ == "__main__":
 
     try:
         print(
-            f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / (numRuns - (failedLaps + canceledLaps)), 3)} seconds with {Colors.CBOLD}{failedLaps}{Colors.CEND} crash(es)\n"
+            f"\nAverage time over {numRuns} runs: {round(lapTimeTotal / (numRuns - failedLaps), 3)} seconds with {Colors.CBOLD}{failedLaps}{Colors.CEND} crash(es)\n"
         )
     except:
         print("\nAll runs crashed")
