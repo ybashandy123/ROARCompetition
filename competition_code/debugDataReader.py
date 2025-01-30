@@ -5,6 +5,8 @@ import json
 import os
 from progress.bar import IncrementalBar
 import transforms3d as tr3d
+import plotly.express as px
+import pandas as pd
 
 data = json.load(open(f"{os.path.dirname(__file__)}\\debugData\\debugData.json"))
 lapMarkers = ["^", ".", "s"]
@@ -68,33 +70,24 @@ if use2D:
         plt.plot(x, y, lapMarkers[data[i]["lap"] - 1], color=colorVal)
         progressBar.next()
 else:
-    fig = plt.figure(figsize=(11, 11))
-    ax = fig.add_subplot(projection="3d")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.set_zlabel("Speed")
-    
+    points = []
     for i in data:
-        colorVal = [0, 0, 0]
-        brakeVal = data[i]["brake"]
-        throttleVal = data[i]["throttle"]
-
-        if brakeVal > 0:
-            colorVal = [brakeVal ** 2, 0, 0]
-            totalSpeedChangeWhileBraking += prevData["speed"] - data[i]["speed"]
-            numBrakeVals += 1
-        else:
-            colorVal = [0, throttleVal ** 2, 0]
-
-        x = data[i]["loc"][0]
-        y = data[i]["loc"][1]
-        
-        prevData = data[i]
-        
-        ax.scatter(x, y, data[i]["speed"], marker=lapMarkers[data[i]["lap"] - 1], color=colorVal)
+        # Add a list of x, y, speed, and throttle/brake values to points 
+        points.append([data[i]["loc"][0], data[i]["loc"][1], data[i]["speed"], data[i]["throttle"] - data[i]["brake"]])
+        # if data[i]["brake"] != 0:
+        #     numBrakeVals += 1
+        #     totalSpeedChangeWhileBraking = data[i]["speed"] - prevData["speed"]
+        # prevData = data[i]
         progressBar.next()
-
+    
+    # Convert our list of points into a Pandas DataFrame to use with Plotly
+    df = pd.DataFrame(points, columns=["x", "y", "z", "throttle/brake"])
+    
+    # Plot the DataFrame 
+    fig = px.scatter_3d(df, x="x", y="y", z="z", color="throttle/brake", color_continuous_scale=[[0, "rgb(225,0,0)"], [1, "rgb(0,225,0)"]], range_color=[-1, 1], labels={"x": "X", "y": "Y", "z": "Speed (kph)"})
+    fig.show()
+    
 progressBar.finish()
 print()
-print(f"Average speed change while braking: {totalSpeedChangeWhileBraking / numBrakeVals}\n")
+# print(f"Average speed change while braking: {totalSpeedChangeWhileBraking / numBrakeVals}\n")
 plt.show()
