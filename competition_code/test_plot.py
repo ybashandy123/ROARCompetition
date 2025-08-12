@@ -7,12 +7,14 @@ import carla
 import numpy as np
 import gymnasium as gym
 import asyncio
+import matplotlib.pyplot as plt
+
 
 class RoarCompetitionRule:
     def __init__(
         self,
-        waypoints : List[roar_py_interface.RoarPyWaypoint],
-        vehicle : roar_py_carla.RoarPyCarlaActor,
+        waypoints: List[roar_py_interface.RoarPyWaypoint],
+        vehicle: roar_py_carla.RoarPyCarlaActor,
         world: roar_py_carla.RoarPyCarlaWorld
     ) -> None:
         self.waypoints = waypoints
@@ -28,33 +30,32 @@ class RoarCompetitionRule:
         vehicle_location = self._last_vehicle_location
         closest_waypoint_dist = np.inf
         closest_waypoint_idx = 0
-        for i,waypoint in enumerate(self.waypoints):
+        for i, waypoint in enumerate(self.waypoints):
             waypoint_dist = np.linalg.norm(vehicle_location - waypoint.location)
             if waypoint_dist < closest_waypoint_dist:
                 closest_waypoint_dist = waypoint_dist
                 closest_waypoint_idx = i
-        self.waypoints = self.waypoints[closest_waypoint_idx+1:] + self.waypoints[:closest_waypoint_idx+1]
+        self.waypoints = self.waypoints[closest_waypoint_idx + 1:] + self.waypoints[:closest_waypoint_idx + 1]
         self.furthest_waypoints_index = 0
         print(f"total length: {len(self.waypoints)}")
         self._respawn_location = self._last_vehicle_location.copy()
         self._respawn_rpy = self.vehicle.get_roll_pitch_yaw().copy()
         # print(self.waypoints[1200:1210])
 
-
     def lap_finished(
-        self, 
-        check_step = 5
+        self,
+        check_step=5
     ):
         # print(len(self.waypoints))
         return self.furthest_waypoints_index + check_step >= len(self.waypoints)
-        #return np.all(self.waypoint_occupancy)
+        # return np.all(self.waypoint_occupancy)
 
     async def tick(
-        self, 
-        check_step = 15
+        self,
+        check_step=15
     ):
         current_location = self.vehicle.get_3d_location()
-        #print(f"current location at : {current_location}")
+        # print(f"current location at : {current_location}")
         delta_vector = current_location - self._last_vehicle_location
         delta_vector_norm = np.linalg.norm(delta_vector)
         delta_vector_unit = (delta_vector / delta_vector_norm) if delta_vector_norm >= 1e-5 else np.zeros(3)
@@ -62,41 +63,25 @@ class RoarCompetitionRule:
         previous_furthest_index = self.furthest_waypoints_index
         min_dis = np.inf
         min_index = 0
-        #print(f"Previous furthest index {previous_furthest_index}")
+        # print(f"Previous furthest index {previous_furthest_index}")
         endind_index = previous_furthest_index + check_step if (previous_furthest_index + check_step <= len(self.waypoints)) else len(self.waypoints)
-        for i,waypoint in enumerate(self.waypoints[previous_furthest_index:endind_index]):
+        for i, waypoint in enumerate(self.waypoints[previous_furthest_index:endind_index]):
             waypoint_delta = waypoint.location - current_location
-            projection = np.dot(waypoint_delta,delta_vector_unit)
-            projection = np.clip(projection,0,delta_vector_norm)
+            projection = np.dot(waypoint_delta, delta_vector_unit)
+            projection = np.clip(projection, 0, delta_vector_norm)
             closest_point_on_segment = current_location + projection * delta_vector_unit
             distance = np.linalg.norm(waypoint.location - closest_point_on_segment)
-            #print(f"looking forward index {i}, distance {distance}")
+            # print(f"looking forward index {i}, distance {distance}")
             if distance < min_dis:
                 min_dis = distance
                 min_index = i
-        
-        self.furthest_waypoints_index += min_index #= new_furthest_index
+
+        self.furthest_waypoints_index += min_index  # = new_furthest_index
         self._last_vehicle_location = current_location
 
-    
     async def respawn(
         self
     ):
-        # vehicle_location = self.vehicle.get_3d_location()
-        # 
-        # closest_waypoint_dist = np.inf
-        # closest_waypoint_idx = 0
-        # for i,waypoint in enumerate(self.waypoints):
-        #     waypoint_dist = np.linalg.norm(vehicle_location - waypoint.location)
-        #     if waypoint_dist < closest_waypoint_dist:
-        #         closest_waypoint_dist = waypoint_dist
-        #         closest_waypoint_idx = i
-        # closest_waypoint = self.waypoints[closest_waypoint_idx]
-        # closest_waypoint_location = closest_waypoint.location
-        # closest_waypoint_rpy = closest_waypoint.roll_pitch_yaw
-        # self.vehicle.set_transform(
-        #     closest_waypoint_location + self.vehicle.bounding_box.extent[2] + 0.2, closest_waypoint_rpy
-        # )
         self.vehicle.set_transform(
             self._respawn_location, self._respawn_rpy
         )
@@ -104,33 +89,34 @@ class RoarCompetitionRule:
         self.vehicle.set_angular_velocity(np.zeros(3))
         for _ in range(20):
             await self.world.step()
-        
+
         self._last_vehicle_location = self.vehicle.get_3d_location()
         self.furthest_waypoints_index = 0
 
+
 async def evaluate_solution(
-    world : roar_py_carla.RoarPyCarlaWorld,
-    solution_constructor : Type[RoarCompetitionSolution],
-    max_seconds = 12000,
-    enable_visualization : bool = False,
+    world: roar_py_carla.RoarPyCarlaWorld,
+    solution_constructor: Type[RoarCompetitionSolution],
+    max_seconds=12000,
+    enable_visualization: bool = False,
 ) -> Optional[Dict[str, Any]]:
     if enable_visualization:
         viewer = ManualControlViewer()
-    
+
     # Spawn vehicle and sensors to receive data
     waypoints = world.maneuverable_waypoints
     vehicle = world.spawn_vehicle(
         "vehicle.tesla.model3",
-        waypoints[0].location + np.array([0,0,1]),
+        waypoints[0].location + np.array([0, 0, 1]),
         waypoints[0].roll_pitch_yaw,
         True,
     )
     assert vehicle is not None
     camera = vehicle.attach_camera_sensor(
         roar_py_interface.RoarPyCameraSensorDataRGB,
-        np.array([-2.0 * vehicle.bounding_box.extent[0], 0.0, 3.0 * vehicle.bounding_box.extent[2]]), # relative position
+        np.array([-2.0 * vehicle.bounding_box.extent[0], 0.0, 3.0 * vehicle.bounding_box.extent[2]]),  # relative position
         # np.array([-12.0 * vehicle.bounding_box.extent[0], 0.0, 18.0 * vehicle.bounding_box.extent[2]]), # relative position
-        np.array([0, 10/180.0*np.pi, 0]), # relative rotation
+        np.array([0, 10 / 180.0 * np.pi, 0]),  # relative rotation
         image_width=1024,
         image_height=768
     )
@@ -155,9 +141,8 @@ async def evaluate_solution(
     assert occupancy_map_sensor is not None
     assert collision_sensor is not None
 
-
-    # Start to run solution 
-    solution : RoarCompetitionSolution = solution_constructor(
+    # Start to run solution
+    solution: RoarCompetitionSolution = solution_constructor(
         waypoints,
         RoarCompetitionAgentWrapper(vehicle),
         camera,
@@ -167,62 +152,100 @@ async def evaluate_solution(
         occupancy_map_sensor,
         collision_sensor
     )
-    rule = RoarCompetitionRule(waypoints * 3,vehicle,world) # 3 laps
+    rule = RoarCompetitionRule(waypoints * 1, vehicle, world)  # 3 laps
 
     for _ in range(20):
         await world.step()
-    
-    rule.initialize_race()
-    # vehicle.close()
-    # exit()
 
-    # Timer starts here 
+    rule.initialize_race()
+
+    # Timer starts here
     start_time = world.last_tick_elapsed_seconds
     current_time = start_time
     await vehicle.receive_observation()
     await solution.initialize()
 
-    
+    # --- tracking for XY plot by section ---
+    xs: List[float] = []
+    ys: List[float] = []
+    secs: List[int] = []
+
     while True:
         # terminate if time out
         current_time = world.last_tick_elapsed_seconds
         if current_time - start_time > max_seconds:
-            vehicle.close()
-            return None
-        
+            # make plot with whatever we have, then exit
+            break
+
         # receive sensors' data
         await vehicle.receive_observation()
 
         await rule.tick()
 
+        # Log xy & section number
+        loc = vehicle.get_3d_location()  # np.array([x, y, z])
+        xs.append(float(loc[0]))
+        ys.append(float(loc[1]))
+        secs.append(int(getattr(solution, "current_section", 0)))
+
         # terminate if there is major collision
         collision_impulse_norm = np.linalg.norm(collision_sensor.get_last_observation().impulse_normal)
         if collision_impulse_norm > 100.0:
-            # vehicle.close()
             print(f"major collision of tensity {collision_impulse_norm}")
-            # return None
             await rule.respawn()
-        
+
         if rule.lap_finished():
             break
-        
+
         if enable_visualization:
             if viewer.render(camera.get_last_observation()) is None:
-                vehicle.close()
-                return None
+                break
 
         await solution.step()
         await world.step()
-    
+
     print("end of the loop")
+
+    # ---- Plot XY colored by section ----
+    try:
+        if xs:
+            fig, ax = plt.subplots(figsize=(7, 7))
+            sc = ax.scatter(xs, ys, c=secs, s=6, cmap="tab20", marker='.')
+            ax.set_aspect('equal', 'box')
+            ax.set_xlabel("X (m)")
+            ax.set_ylabel("Y (m)")
+            ax.set_title("Vehicle XY Trajectory by Section")
+            cbar = plt.colorbar(sc, ax=ax)
+            cbar.set_label("Section (solution.current_section)")
+            plt.tight_layout()
+            plt.savefig("track_xy_by_section.png", dpi=200)
+            # If you prefer an interactive window locally:
+            # plt.show()
+            print("Saved plot to track_xy_by_section.png")
+        else:
+            print("No XY data collected to plot.")
+    except Exception as e:
+        print(f"Plotting failed: {e}")
+
     end_time = world.last_tick_elapsed_seconds
-    vehicle.close()
     if enable_visualization:
-        viewer.close()
-    
+        try:
+            viewer.close()
+        except Exception:
+            pass
+    try:
+        vehicle.close()
+    except Exception:
+        pass
+
+    # If the loop timed out, return None; otherwise elapsed time
+    if current_time - start_time > max_seconds:
+        return None
+
     return {
-        "elapsed_time" : end_time - start_time,
+        "elapsed_time": end_time - start_time,
     }
+
 
 async def main():
     carla_client = carla.Client('127.0.0.1', 2000)
@@ -241,6 +264,7 @@ async def main():
         print("Solution finished in {} seconds".format(evaluation_result["elapsed_time"]))
     else:
         print("Solution failed to finish in time")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

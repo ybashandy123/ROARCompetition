@@ -8,6 +8,61 @@ import numpy as np
 import gymnasium as gym
 import asyncio
 
+import matplotlib.pyplot as plt
+
+def plot_vertical_planes(x, y, z, d, plane_width=0.2, orient='x', alpha=0.6):
+    """
+    Draw a vertical plane (a thin rectangular wall) at each (x[i], y[i]),
+    rising from z=0 up to z[i]. Color is green if d[i] is True, else red.
+
+    orient: 'x'  -> plane is parallel to YZ (constant X, vary Y across width)
+            'y'  -> plane is parallel to XZ (constant Y, vary X across width)
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+    z = np.asarray(z)
+    d = np.asarray(d, dtype=bool)
+
+    print(x)
+    print(y)
+    print(z)
+    print(d)
+
+    assert x.shape == y.shape == z.shape == d.shape, "x, y, z, d must be same length"
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    for xi, yi, zi, di in zip(x, y, z, d):
+        zi = float(zi)
+        if orient == 'x':
+            # constant X = xi; vary Y across the width
+            X = np.array([[xi, xi],
+                          [xi, xi]])
+            Y = np.array([[yi - plane_width/2, yi + plane_width/2],
+                          [yi - plane_width/2, yi + plane_width/2]])
+        elif orient == 'y':
+            # constant Y = yi; vary X across the width
+            X = np.array([[xi - plane_width/2, xi + plane_width/2],
+                          [xi - plane_width/2, xi + plane_width/2]])
+            Y = np.array([[yi, yi],
+                          [yi, yi]])
+        else:
+            raise ValueError("orient must be 'x' or 'y'")
+
+        # vertical from z=0 to z=zi
+        Z = np.array([[0.0, 0.0],
+                      [zi,  zi]])
+
+        color = 'green' if di else 'red'
+        ax.plot_surface(X, Y, Z, color=color, alpha=alpha, edgecolor='none')
+
+    ax.set_xlabel('Position X (m)')
+    ax.set_ylabel('Position Y (m)')
+    ax.set_zlabel('Velocity (kph)')
+    plt.tight_layout()
+    plt.show()
+
 class RoarCompetitionRule:
     def __init__(
         self,
@@ -77,6 +132,7 @@ class RoarCompetitionRule:
         
         self.furthest_waypoints_index += min_index #= new_furthest_index
         self._last_vehicle_location = current_location
+        print(f"reach waypoints {self.furthest_waypoints_index} at {self.waypoints[self.furthest_waypoints_index].location}")
 
     
     async def respawn(
@@ -167,7 +223,7 @@ async def evaluate_solution(
         occupancy_map_sensor,
         collision_sensor
     )
-    rule = RoarCompetitionRule(waypoints * 3,vehicle,world) # 3 laps
+    rule = RoarCompetitionRule(waypoints * 1,vehicle,world) # 3 laps
 
     for _ in range(20):
         await world.step()
@@ -182,14 +238,22 @@ async def evaluate_solution(
     await vehicle.receive_observation()
     await solution.initialize()
 
+    x_list = []
+    y_list = []
+    v_list = []
+    a_list = []
+    an_list = []
     
+    prev = 0
+    n = 0
     while True:
         # terminate if time out
+        n += 1
         current_time = world.last_tick_elapsed_seconds
         if current_time - start_time > max_seconds:
             vehicle.close()
             return None
-        
+
         # receive sensors' data
         await vehicle.receive_observation()
 
@@ -206,6 +270,18 @@ async def evaluate_solution(
         if rule.lap_finished():
             break
         
+        location = vehicle.get_3d_location()
+        x_list.append(location[0])
+        y_list.append(location[1])
+        velocity = np.linalg.norm(vehicle.get_linear_3d_velocity())
+
+        acceleration = (velocity > prev)
+        an_list.append(velocity - prev)
+        prev = velocity
+
+        v_list.append(velocity)
+        a_list.append(acceleration)
+
         if enable_visualization:
             if viewer.render(camera.get_last_observation()) is None:
                 vehicle.close()
@@ -214,11 +290,26 @@ async def evaluate_solution(
         await solution.step()
         await world.step()
     
+    plot_vertical_planes(x_list, y_list, v_list, a_list, plane_width=15, orient='x', alpha=1)
+
+    """
+    with open("x.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, x_list))))
+    with open("y.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, y_list))))
+    with open("v.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, v_list))))
+    with open("a.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, an_list))))
+    """
+
     print("end of the loop")
     end_time = world.last_tick_elapsed_seconds
     vehicle.close()
     if enable_visualization:
         viewer.close()
+
+    
     
     return {
         "elapsed_time" : end_time - start_time,

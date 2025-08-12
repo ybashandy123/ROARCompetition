@@ -4,6 +4,8 @@ from collections import deque
 from SpeedData import SpeedData
 import roar_py_interface
 
+prevTarget = 0 
+lowest = 300
 
 def distance_p_to_p(
     p1: roar_py_interface.RoarPyWaypoint, p2: roar_py_interface.RoarPyWaypoint
@@ -17,7 +19,7 @@ class ThrottleController:
 
     def __init__(self):
         self.max_radius = 10000
-        self.max_speed = 300
+        self.max_speed = 350
         self.intended_target_distance = [0, 30, 60, 90, 120, 140, 170]
         self.target_distance = [0, 30, 60, 90, 120, 150, 180]
         self.close_index = 0
@@ -26,6 +28,7 @@ class ThrottleController:
         self.tick_counter = 0
         self.previous_speed = 1.0
         self.brake_ticks = 0
+        self.acceleration_threshold = 0.45
 
         # for testing how fast the car stops
         self.brake_test_counter = 0
@@ -172,13 +175,13 @@ class ThrottleController:
                     return -1, 1
 
                 # if speed is not decreasing fast, hit the brake.
-                if self.brake_ticks <= 0 and speed_change < 2.5:
+                if self.brake_ticks <= 0 and speed_change < self.acceleration_threshold:
                     # start braking, and set for how many ticks to brake
                     self.brake_ticks = (
                         round(
                             (
                                 speed_data.current_speed
-                                - speed_data.recommended_speed_now
+                                -speed_data.recommended_speed_now
                             )
                             / 3
                         )
@@ -203,7 +206,7 @@ class ThrottleController:
                     self.brake_ticks = 0  # done slowing down. clear brake_ticks
                     return 1, 0
             else:
-                if speed_change >= 2.5:
+                if speed_change >= self.acceleration_threshold:
                     # speed is already dropping fast, ok to throttle because the effect of throttle is delayed
                     self.dprint(
                         "tb: tick "
@@ -238,7 +241,7 @@ class ThrottleController:
         else:
             self.brake_ticks = 0  # done slowing down. clear brake_ticks
             # Speed up
-            if speed_change >= 2.5:
+            if speed_change >= self.acceleration_threshold:
                 # speed is dropping fast, ok to throttle because the effect of throttle is delayed
                 self.dprint(
                     "tb: tick "
@@ -435,9 +438,8 @@ class ThrottleController:
             mu = 2.1
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
-
         return max(
-            20, min(target_speed, self.max_speed)
+            100, min(target_speed, self.max_speed)
         )  # clamp between 20 and max_speed
 
     def print_speed(

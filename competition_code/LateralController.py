@@ -5,6 +5,7 @@ import math
 def normalize_rad(rad: float):
     return rad % (2 * np.pi)
 
+min_lateral_magnitude = 0.0001
 
 class LatController:
     def run(self, vehicle_location, vehicle_rotation, next_waypoint) -> float:
@@ -38,5 +39,8 @@ class LatController:
         steering_command = 1.5 * math.atan2(
             2.0 * 4.7 * math.sin(alpha) / distance_to_waypoint, 1.0
         )
+
+        steering_command = 0 if abs(steering_command) < min_lateral_magnitude else steering_command
+
 
         return float(steering_command)

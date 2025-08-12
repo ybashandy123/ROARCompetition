@@ -8,6 +8,63 @@ import numpy as np
 import gymnasium as gym
 import asyncio
 
+import pandas as pd
+
+import matplotlib.pyplot as plt
+
+def plot_vertical_planes(x, y, z, d, plane_width=0.2, orient='x', alpha=0.6):
+    """
+    Draw a vertical plane (a thin rectangular wall) at each (x[i], y[i]),
+    rising from z=0 up to z[i]. Color is green if d[i] is True, else red.
+
+    orient: 'x'  -> plane is parallel to YZ (constant X, vary Y across width)
+            'y'  -> plane is parallel to XZ (constant Y, vary X across width)
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+    z = np.asarray(z)
+    d = np.asarray(d, dtype=bool)
+
+    print(x)
+    print(y)
+    print(z)
+    print(d)
+
+    assert x.shape == y.shape == z.shape == d.shape, "x, y, z, d must be same length"
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    for xi, yi, zi, di in zip(x, y, z, d):
+        zi = float(zi)
+        if orient == 'x':
+            # constant X = xi; vary Y across the width
+            X = np.array([[xi, xi],
+                          [xi, xi]])
+            Y = np.array([[yi - plane_width/2, yi + plane_width/2],
+                          [yi - plane_width/2, yi + plane_width/2]])
+        elif orient == 'y':
+            # constant Y = yi; vary X across the width
+            X = np.array([[xi - plane_width/2, xi + plane_width/2],
+                          [xi - plane_width/2, xi + plane_width/2]])
+            Y = np.array([[yi, yi],
+                          [yi, yi]])
+        else:
+            raise ValueError("orient must be 'x' or 'y'")
+
+        # vertical from z=0 to z=zi
+        Z = np.array([[0.0, 0.0],
+                      [zi,  zi]])
+
+        color = 'green' if di else 'red'
+        ax.plot_surface(X, Y, Z, color=color, alpha=alpha, edgecolor='none')
+
+    ax.set_xlabel('Position X (m)')
+    ax.set_ylabel('Position Y (m)')
+    ax.set_zlabel('Velocity (kph)')
+    plt.tight_layout()
+    plt.show()
+
 class RoarCompetitionRule:
     def __init__(
         self,
@@ -77,6 +134,7 @@ class RoarCompetitionRule:
         
         self.furthest_waypoints_index += min_index #= new_furthest_index
         self._last_vehicle_location = current_location
+        #print(f"reach waypoints {self.furthest_waypoints_index} at {self.waypoints[self.furthest_waypoints_index].location}")
 
     
     async def respawn(
@@ -117,7 +175,6 @@ async def evaluate_solution(
     if enable_visualization:
         viewer = ManualControlViewer()
     
-    # Spawn vehicle and sensors to receive data
     waypoints = world.maneuverable_waypoints
     vehicle = world.spawn_vehicle(
         "vehicle.tesla.model3",
@@ -126,37 +183,20 @@ async def evaluate_solution(
         True,
     )
     assert vehicle is not None
+    
     camera = vehicle.attach_camera_sensor(
         roar_py_interface.RoarPyCameraSensorDataRGB,
-        np.array([-2.0 * vehicle.bounding_box.extent[0], 0.0, 3.0 * vehicle.bounding_box.extent[2]]), # relative position
-        # np.array([-12.0 * vehicle.bounding_box.extent[0], 0.0, 18.0 * vehicle.bounding_box.extent[2]]), # relative position
-        np.array([0, 10/180.0*np.pi, 0]), # relative rotation
+        np.array([-2.0 * vehicle.bounding_box.extent[0], 0.0, 3.0 * vehicle.bounding_box.extent[2]]),
+        np.array([0, 10/180.0*np.pi, 0]),
         image_width=1024,
         image_height=768
     )
     location_sensor = vehicle.attach_location_in_world_sensor()
     velocity_sensor = vehicle.attach_velocimeter_sensor()
     rpy_sensor = vehicle.attach_roll_pitch_yaw_sensor()
-    occupancy_map_sensor = vehicle.attach_occupancy_map_sensor(
-        50,
-        50,
-        2.0,
-        2.0
-    )
-    collision_sensor = vehicle.attach_collision_sensor(
-        np.zeros(3),
-        np.zeros(3)
-    )
+    occupancy_map_sensor = vehicle.attach_occupancy_map_sensor(50, 50, 2.0, 2.0)
+    collision_sensor = vehicle.attach_collision_sensor(np.zeros(3), np.zeros(3))
 
-    assert camera is not None
-    assert location_sensor is not None
-    assert velocity_sensor is not None
-    assert rpy_sensor is not None
-    assert occupancy_map_sensor is not None
-    assert collision_sensor is not None
-
-
-    # Start to run solution 
     solution : RoarCompetitionSolution = solution_constructor(
         waypoints,
         RoarCompetitionAgentWrapper(vehicle),
@@ -167,44 +207,61 @@ async def evaluate_solution(
         occupancy_map_sensor,
         collision_sensor
     )
-    rule = RoarCompetitionRule(waypoints * 3,vehicle,world) # 3 laps
+    rule = RoarCompetitionRule(waypoints * 4, vehicle, world)  # 6 laps to allow 5 laps averaging
 
     for _ in range(20):
         await world.step()
     
     rule.initialize_race()
-    # vehicle.close()
-    # exit()
 
-    # Timer starts here 
     start_time = world.last_tick_elapsed_seconds
-    current_time = start_time
     await vehicle.receive_observation()
     await solution.initialize()
 
-    
+    # Data logging
+    laps_data = [[], [], [], [], [], []]
+    prev_velocity = 0.0
+    current_lap = 1
+
+    lastSection = 2
+
     while True:
-        # terminate if time out
         current_time = world.last_tick_elapsed_seconds
         if current_time - start_time > max_seconds:
             vehicle.close()
             return None
         
-        # receive sensors' data
         await vehicle.receive_observation()
-
         await rule.tick()
 
-        # terminate if there is major collision
+        # Lap counting
+        section = round(getattr(solution, "current_section", 0))
+        if lastSection == 0 and section != 0:
+            print(f"lap {current_lap} finished")
+            current_lap += 1
+            rule.furthest_waypoints_index = 0
+            if current_lap > 4:  # Done with 6 laps (1 warm-up + 5 for average)
+                break
+        
+        lastSection = section
+
+        # Telemetry capture
+        loc = vehicle.get_3d_location()
+        vel_vec = vehicle.get_linear_3d_velocity()
+        velocity = float(np.linalg.norm(vel_vec))
+        acceleration = velocity - prev_velocity
+
+        laps_data[0].append(current_time - start_time)
+        laps_data[1].append(loc[0])
+        laps_data[2].append(loc[1])
+        laps_data[3].append(velocity)
+        laps_data[4].append(acceleration)
+        laps_data[5].append(section)
+        prev_velocity = velocity
+
         collision_impulse_norm = np.linalg.norm(collision_sensor.get_last_observation().impulse_normal)
         if collision_impulse_norm > 100.0:
-            # vehicle.close()
-            print(f"major collision of tensity {collision_impulse_norm}")
-            # return None
             await rule.respawn()
-        
-        if rule.lap_finished():
-            break
         
         if enable_visualization:
             if viewer.render(camera.get_last_observation()) is None:
@@ -214,14 +271,28 @@ async def evaluate_solution(
         await solution.step()
         await world.step()
     
-    print("end of the loop")
-    end_time = world.last_tick_elapsed_seconds
+
+
     vehicle.close()
     if enable_visualization:
         viewer.close()
-    
+
+    # Save raw telemetry
+    with open("time.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, laps_data[0]))))
+    with open("x.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, laps_data[1]))))
+    with open("y.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, laps_data[2]))))
+    with open("v.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, laps_data[3]))))
+    with open("a.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, laps_data[4]))))
+    with open("section.csv", "w+") as x_file:
+        x_file.write(",".join(list(map(str, laps_data[5]))))
+
     return {
-        "elapsed_time" : end_time - start_time,
+        "elapsed_time": current_time - start_time,
     }
 
 async def main():
