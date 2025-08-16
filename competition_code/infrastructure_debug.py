@@ -8,6 +8,18 @@ from PIL.Image import Image
 import numpy as np
 from typing import Optional, Dict, Any
 
+control_variable = {
+    "throttle": 0.0,
+    "steer": 0.0,
+    "brake": 0.0,
+    "hand_brake": np.array([0]),
+    "reverse": np.array([0])
+}
+
+current_section = 0
+
+target_speed = 0
+
 class ManualControlViewer:
     def __init__(
         self
@@ -22,6 +34,7 @@ class ManualControlViewer:
             "reverse": np.array([0])
         }
         self._font_mono = None
+        self.v_previous = 0
     
     def init_pygame(self, x, y) -> None:
         pygame.init()
@@ -42,6 +55,9 @@ class ManualControlViewer:
     def close(self) -> None:
         pygame.quit()
 
+    def give_control(self, new_control):
+        self.last_control = new_control
+
     def render(self, image : roar_py_interface.RoarPyCameraSensorData, occupancy_map : Optional[Image] = None, vehicle = None) -> Optional[Dict[str, Any]]:
         image_pil : Image = image.get_image()
         occupancy_map_rgb = occupancy_map.convert("RGB") if occupancy_map is not None else None
@@ -58,6 +74,9 @@ class ManualControlViewer:
             "hand_brake": np.array([0]),
             "reverse": np.array([0])
         }
+
+        global control_variable
+        new_control = control_variable
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -102,14 +121,22 @@ class ManualControlViewer:
     
     def get_info(self, vehicle):
         location = vehicle.get_3d_location()
-        v = vehicle.get_linear_3d_velocity()
+        v = np.linalg.norm(vehicle.get_linear_3d_velocity())
+        a = (v - self.v_previous) / 0.05
+        self.v_previous = v
         return [
-            "Location:% 20s" % ("(% 5.1f, % 5.1f)" % (location[0], location[1])),
-            "Speed:   % 15.2f km/h" % (3.6 * math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)),
+            "Location:% 20s" % ("(% 5.1f, % 5.1f )" % (location[0], location[1])),
+            "Speed: % 15.2f km/h" % (3.6 * v),
+            "Target Speed: % 15.2f km/h" % (target_speed),
+            "Acceleration: % 15.2f km/h/h" % (3.6 * a),
+            "Throttle: % 15.2f" % (self.last_control['throttle']),
+            "Brake: % 15.2f" % (self.last_control['brake']),
+            "Steer: % 15.2f" % (self.last_control['steer']),
+            "Section: % s" % current_section
         ]
 
     def show_info(self, string_list):
-        info_surface = pygame.Surface((320, 100))
+        info_surface = pygame.Surface((320, 160))
         info_surface.set_alpha(100)
         self.screen.blit(info_surface, (0, 0))
         v_offset = 4

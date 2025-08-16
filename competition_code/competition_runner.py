@@ -8,6 +8,8 @@ import numpy as np
 import gymnasium as gym
 import asyncio
 
+import xlsxwriter
+
 class RoarCompetitionRule:
     def __init__(
         self,
@@ -166,7 +168,8 @@ async def evaluate_solution(
         velocity_sensor,
         rpy_sensor,
         occupancy_map_sensor,
-        collision_sensor
+        collision_sensor,
+        lidar_sensor
     )
     rule = RoarCompetitionRule(waypoints * 3,vehicle,world) # 3 laps
 
@@ -214,7 +217,39 @@ async def evaluate_solution(
 
         await solution.step()
         await world.step()
+
+    exit_velocities = solution.exit_velocities
+    section_times = solution.section_times
+
+    total_time = 0
+
+    for section in section_times:
+        total_time += sum(section)
     
+    workbook = xlsxwriter.Workbook('telemetry.xlsx')
+    worksheet = workbook.add_worksheet()
+
+    print(total_time)
+    print(str(section_times))
+    print(str(exit_velocities))
+
+    column = 0
+    for i in range(len(section_times)):
+        column = i * 3
+        exitColumn = column + 1
+
+        worksheet.write(0, column, f"Section {i}")
+        worksheet.write(0, exitColumn, f"Exit velocity")
+        for ii in range(len(section_times[i])):
+            worksheet.write(ii + 1, column, f"{section_times[i][ii]:.2f}")
+        for iii in range(len(exit_velocities[i])):
+            worksheet.write(iii + 1, exitColumn, f"{exit_velocities[i][iii]:.2f}")
+    
+    worksheet.write(0, column + 3, "Total time")
+    worksheet.write(1, column + 3, f"{total_time:.2f}")
+    
+    workbook.close()
+
     print("end of the loop")
     end_time = world.last_tick_elapsed_seconds
     vehicle.close()

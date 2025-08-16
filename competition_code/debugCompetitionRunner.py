@@ -8,7 +8,6 @@ import numpy as np
 import gymnasium as gym
 import asyncio
 
-
 class Colors:
     # Find full colors and effects here: https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
     CGREEN2 = "\033[92m"
@@ -236,11 +235,12 @@ async def evaluate_solution(
 
     while True:
         # terminate if time out
+
         current_time = world.last_tick_elapsed_seconds
         if current_time - start_time > max_seconds:
             vehicle.close()
             return None
-
+        
         # receive sensors' data
         await vehicle.receive_observation()
 
@@ -302,7 +302,7 @@ async def main():
     )
 
     if evaluation_result is not None:
-        print(f"Solution finished in {evaluation_result['elapsed_time']} seconds")
+        print(f"Solution finished in {evaluation_result['elapsed_time']:.3f} seconds")
         return evaluation_result["elapsed_time"]
     else:
         print("Solution failed to finish in time")

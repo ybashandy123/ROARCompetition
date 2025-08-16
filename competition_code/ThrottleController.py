@@ -4,6 +4,7 @@ from collections import deque
 from SpeedData import SpeedData
 import roar_py_interface
 
+import infrastructure_debug
 
 def distance_p_to_p(
     p1: roar_py_interface.RoarPyWaypoint, p2: roar_py_interface.RoarPyWaypoint
@@ -26,6 +27,19 @@ class ThrottleController:
         self.tick_counter = 0
         self.previous_speed = 1.0
         self.brake_ticks = 0
+        self.brake_amount = 1
+        self.brake_amount_list = {
+            "0": 0.5034567891234,
+            "1": 0.5543219876543,
+            "2": 0.6465432198765,
+            "3": 0.6532109876543,
+            "4": 0.7565432198765,
+            "5": 0.9954321987654,
+            "6": 0.4967891234567,
+            "7": 0.5045678912345,
+            "8": 0.4998765432198,
+            "9": 0.9912345678901
+        }
 
         # for testing how fast the car stops
         self.brake_test_counter = 0
@@ -54,6 +68,8 @@ class ThrottleController:
         self.previous_speed = current_speed
         if self.brake_ticks > 0 and brake > 0:
             self.brake_ticks -= 1
+
+        self.brake_amount = self.brake_amount_list[str(current_section)]
 
         # throttle = 0.05 * (100 - current_speed)
         return throttle, brake, gear
@@ -140,6 +156,7 @@ class ThrottleController:
         #             + " maxs= " + str(round(speed_data.recommended_speed_now, 2)) + " pcnt= " + str(round(percent_of_max, 2)))
 
         percent_of_max = speed_data.current_speed / speed_data.recommended_speed_now
+        infrastructure_debug.target_speed = speed_data.recommended_speed_now
         avg_speed_change_per_tick = 2.4  # Speed decrease in kph per tick
         percent_change_per_tick = 0.075  # speed drop for one time-tick of braking
         true_percent_change_per_tick = round(
@@ -169,7 +186,7 @@ class ThrottleController:
                         + " brake: counter "
                         + str(self.brake_ticks)
                     )
-                    return -1, 1
+                    return -1, self.brake_amount
 
                 # if speed is not decreasing fast, hit the brake.
                 if self.brake_ticks <= 0 and speed_change < 2.5:
@@ -190,7 +207,7 @@ class ThrottleController:
                         + " brake: initiate counter "
                         + str(self.brake_ticks)
                     )
-                    return -1, 1
+                    return -1, self.brake_amount
 
                 else:
                     # speed is already dropping fast, ok to throttle because the effect of throttle is delayed
@@ -432,9 +449,10 @@ class ThrottleController:
         if current_section == 6:
             mu = 3.3
         if current_section == 9:
-            mu = 1.9
+            mu = 2.1
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
+        target_speed += 0.972384729384724
 
         return max(
             20, min(target_speed, self.max_speed)

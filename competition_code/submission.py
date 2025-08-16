@@ -15,6 +15,8 @@ from LateralController import LatController
 from ThrottleController import ThrottleController
 import atexit
 
+import infrastructure_debug
+
 # from scipy.interpolate import interp1d
 
 useDebug = True
@@ -154,7 +156,7 @@ class RoarCompetitionSolution:
                 abs(self.current_waypoint_idx - section_ind) <= 2
                 and i != self.current_section
             ):
-                print(f"Section {i}: {((self.num_ticks - self.section_start_ticks) * 0.05):.2f} seconds")
+                print(f"Section {i}: {self.num_ticks - self.section_start_ticks} ticks")
                 self.section_start_ticks = self.num_ticks
                 self.current_section = i
                 if self.current_section == 0 and self.lapNum != 3:
@@ -207,6 +209,9 @@ class RoarCompetitionSolution:
             "reverse": 0,
             "target_gear": gear,  # Gears do not appear to have an impact on speed
         }
+
+        infrastructure_debug.control_variable = control
+        infrastructure_debug.current_section = self.current_section
         
         if useDebug:
             debugData[self.num_ticks] = {}
@@ -233,7 +238,7 @@ Throttle: {control['throttle']:.3f} \n\
 Brake: {control['brake']:.3f} \n\
 Steer: {control['steer']:.10f} \n"
                 )
-
+        
         await self.vehicle.apply_action(control)
         return control
 
