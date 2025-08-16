@@ -10,6 +10,8 @@ This submission is based on Derek Chen's previous first place solution.
 For our solution we:
 Decreased unnecessary braking in most sections of the track using a neural network to choose braking amounts for each section.
 
+Modified equation for target velocity using neural networks
+
 Are computing instantaneous radii for each waypoint on the track to increase target speed accuracy and decrease compute times for each tick (WIP)
 
 Will add a CAS (Collision avoidance system) based on open source Carla CAS systems using LiDar (although this is not implemented yet due to issues with LiDar sensors)
