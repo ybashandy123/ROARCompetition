@@ -169,7 +169,6 @@ async def evaluate_solution(
         rpy_sensor,
         occupancy_map_sensor,
         collision_sensor,
-        lidar_sensor
     )
     rule = RoarCompetitionRule(waypoints * 3,vehicle,world) # 3 laps
 
@@ -218,6 +217,7 @@ async def evaluate_solution(
         await solution.step()
         await world.step()
 
+    """
     exit_velocities = solution.exit_velocities
     section_times = solution.section_times
 
@@ -250,7 +250,8 @@ async def evaluate_solution(
     
     workbook.close()
 
-    print("end of the loop")
+    #print("end of the loop")
+    """
     end_time = world.last_tick_elapsed_seconds
     vehicle.close()
     if enable_visualization:

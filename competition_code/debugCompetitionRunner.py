@@ -8,6 +8,11 @@ import numpy as np
 import gymnasium as gym
 import asyncio
 
+# === added imports for live plotting ===
+import os
+import matplotlib.pyplot as plt
+# =======================================
+
 class Colors:
     # Find full colors and effects here: https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
     CGREEN2 = "\033[92m"
@@ -162,6 +167,37 @@ class RoarCompetitionRule:
         self.furthest_waypoints_index = 0
 
 
+# === helper for loading centered waypoints (track outline) ===
+def _load_centered_waypoints_npz(npz_path: str):
+    """
+    Loads .npz file and returns (xs, ys) for plotting.
+    Accepts either a 'centeredWaypoints' key or the first array in the file.
+    """
+    try:
+        data = np.load(npz_path, allow_pickle=True)
+    except Exception as e:
+        print(f"Could not load NPZ at {npz_path}: {e}")
+        return None, None
+
+    key = "centeredWaypoints" if "centeredWaypoints" in data.files else (data.files[0] if len(data.files) > 0 else None)
+    if key is None:
+        print(f"No arrays found in {npz_path}")
+        return None, None
+
+    arr = data[key]
+    # Expect Nx2 or Nx3; take first two columns as x,y.
+    if arr.ndim == 2 and arr.shape[1] >= 2:
+        xs, ys = arr[:, 0], arr[:, 1]
+        return xs, ys
+    elif arr.ndim == 1 and arr.size >= 2:
+        # Fallback if stored oddly
+        return arr[0], arr[1]
+    else:
+        print(f"Unexpected shape for {key} in {npz_path}: {arr.shape}")
+        return None, None
+# =============================================================
+
+
 async def evaluate_solution(
     world: roar_py_carla.RoarPyCarlaWorld,
     solution_constructor: Type[RoarCompetitionSolution],
@@ -220,6 +256,32 @@ async def evaluate_solution(
     )
     rule = RoarCompetitionRule(waypoints * 3, vehicle, world)  # 3 laps
 
+    # === setup live plot (track + car position) ===
+    plot_enabled = True  # tie plotting to the same flag
+    if plot_enabled:
+        plt.ion()
+        fig, ax = plt.subplots()
+        ax.set_aspect("equal")
+        # Load centered waypoints from .\waypoints\centeredWaypoints.npz
+        npz_path = os.path.join(".", "waypoints", "centeredWaypoints.npz")
+        xs, ys = _load_centered_waypoints_npz(npz_path)
+        track_line = None
+        if xs is not None and ys is not None:
+            # "Make sure the line ... is ~10 units wide" — use a thick line for clear ~10-unit appearance
+            track_line, = ax.plot(xs, ys, linewidth=10, alpha=0.35)
+            # Set reasonable bounds
+            pad = 20.0
+            ax.set_xlim(float(np.min(xs)) - pad, float(np.max(xs)) + pad)
+            ax.set_ylim(float(np.min(ys)) - pad, float(np.max(ys)) + pad)
+        # Car position marker
+        car_point, = ax.plot([], [], marker="o", markersize=6)
+        ax.set_title("Centered Waypoints (track) and Vehicle Position")
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+    # ===============================================
+
     for _ in range(20):
         await world.step()
 
@@ -276,6 +338,19 @@ async def evaluate_solution(
                     "elapsed_time": start_time - world.last_tick_elapsed_seconds
                 }
 
+        # === update live plot with current car position ===
+        if plot_enabled:
+            try:
+                pos = vehicle.get_3d_location()
+                # Position (x, y) = vehicle.get_3d_location()[0] and [1]
+                car_point.set_data([pos[0]], [pos[1]])
+                fig.canvas.draw_idle()
+                plt.pause(0.001)
+            except Exception as e:
+                # Non-fatal plotting errors should not stop the sim
+                print(f"Plot update error: {e}")
+        # ==================================================
+
         await solution.step()
         await world.step()
 
@@ -284,6 +359,13 @@ async def evaluate_solution(
     vehicle.close()
     if enable_visualization:
         viewer.close()
+    # Close plot window after run
+    if plot_enabled:
+        try:
+            plt.ioff()
+            plt.close('all')
+        except:
+            pass
 
     return {
         "elapsed_time": end_time - start_time,

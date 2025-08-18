@@ -49,7 +49,7 @@ class ThrottleController:
         print("done")
 
     def run(
-        self, waypoints, current_location, current_speed, current_section
+        self, waypoints, current_location, current_speed, current_section, time_to_hit
     ) -> (float, float, int):
         self.tick_counter += 1
         throttle, brake = self.get_throttle_and_brake(
@@ -68,6 +68,10 @@ class ThrottleController:
         self.previous_speed = current_speed
         if self.brake_ticks > 0 and brake > 0:
             self.brake_ticks -= 1
+
+        if time_to_hit < 0.1 and self.brake_ticks == 0:
+            print("CAS BRAKING INITIATED")
+            self.brake_ticks += 2
 
         self.brake_amount = self.brake_amount_list[str(current_section)]
 
