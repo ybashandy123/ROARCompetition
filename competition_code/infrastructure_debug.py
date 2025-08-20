@@ -35,6 +35,7 @@ class ManualControlViewer:
         }
         self._font_mono = None
         self.v_previous = 0
+        self.id_count = 0
     
     def init_pygame(self, x, y) -> None:
         pygame.init()
@@ -124,19 +125,21 @@ class ManualControlViewer:
         v = np.linalg.norm(vehicle.get_linear_3d_velocity())
         a = (v - self.v_previous) / 0.05
         self.v_previous = v
+        self.id_count += 1
         return [
             "Location:% 20s" % ("(% 5.1f, % 5.1f )" % (location[0], location[1])),
             "Speed: % 15.2f km/h" % (3.6 * v),
             "Target Speed: % 15.2f km/h" % (target_speed),
-            "Acceleration: % 15.2f km/h/h" % (3.6 * a),
+            "Acceleration: % 15.2f km/h/s" % (3.6 * a),
             "Throttle: % 15.2f" % (self.last_control['throttle']),
             "Brake: % 15.2f" % (self.last_control['brake']),
             "Steer: % 15.2f" % (self.last_control['steer']),
-            "Section: % s" % current_section
+            "Section: % s" % current_section,
+            "ID: % s" % str(self.id_count)
         ]
 
     def show_info(self, string_list):
-        info_surface = pygame.Surface((320, 160))
+        info_surface = pygame.Surface((320, 165))
         info_surface.set_alpha(100)
         self.screen.blit(info_surface, (0, 0))
         v_offset = 4

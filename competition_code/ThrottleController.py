@@ -12,6 +12,19 @@ def distance_p_to_p(
     return np.linalg.norm(p2.location[:2] - p1.location[:2])
 
 
+SECTION_BRAKING = {
+    0: 0,
+    1: 0,
+    2: 0,
+    3: 0.2,
+    4: 0,
+    5: 0.2,
+    6: 0,
+    7: 0,
+    8: 0,
+    9: 0
+}
+
 class ThrottleController:
     display_debug = False
     debug_strings = deque(maxlen=1000)
@@ -27,18 +40,20 @@ class ThrottleController:
         self.tick_counter = 0
         self.previous_speed = 1.0
         self.brake_ticks = 0
+        self.cas_ticks = 0
         self.brake_amount = 1
+        self.current_section = 0
         self.brake_amount_list = {
-            "0": 0.5034567891234,
-            "1": 0.5543219876543,
-            "2": 0.6465432198765,
-            "3": 0.6532109876543,
-            "4": 0.7565432198765,
-            "5": 0.9954321987654,
-            "6": 0.4967891234567,
-            "7": 0.5045678912345,
-            "8": 0.4998765432198,
-            "9": 0.9912345678901
+            "0": 0.5,
+            "1": 0.55,
+            "2": 0.65,
+            "3": 0.65,
+            "4": 0.75,
+            "5": 1,
+            "6": 0.5,
+            "7": 0.5,
+            "8": 0.5,
+            "9": 1
         }
 
         # for testing how fast the car stops
@@ -60,6 +75,8 @@ class ThrottleController:
         if throttle < 0:
             gear = -1
 
+        self.current_section = current_section
+
         # self.dprint("--- " + str(throttle) + " " + str(brake)
         #             + " steer " + str(steering)
         #             + "     loc x,z" + str(self.agent.vehicle.transform.location.x)
@@ -69,9 +86,9 @@ class ThrottleController:
         if self.brake_ticks > 0 and brake > 0:
             self.brake_ticks -= 1
 
-        if time_to_hit < 0.1 and self.brake_ticks == 0:
+        if time_to_hit < SpeedData.TTH_THRESHOLD[current_section] and self.brake_ticks == 0:
             print("CAS BRAKING INITIATED")
-            self.brake_ticks += 2
+            self.cas_ticks = 1
 
         self.brake_amount = self.brake_amount_list[str(current_section)]
 
@@ -102,7 +119,7 @@ class ThrottleController:
             self.speed_for_turn(close_distance, target_speed1, current_speed)
         )
         speed_data.append(
-            self.speed_for_turn(mid_distance, target_speed2, current_speed)
+            self.speed_for_turn(mid_distance, target_speed2, current_speed)   
         )
         speed_data.append(
             self.speed_for_turn(far_distance, target_speed3, current_speed)
@@ -175,10 +192,19 @@ class ThrottleController:
         )  # avoid division by zero
         speed_change = round(speed_data.current_speed - self.previous_speed, 3)
 
+        if self.cas_ticks > 0:
+            section_brake = SECTION_BRAKING[self.current_section]
+            if section_brake > 0:
+                self.cas_ticks -= 1
+                print(f"[CAS] APPLIED BRAKE: {SECTION_BRAKING[self.current_section]}")
+                return 0, SECTION_BRAKING[self.current_section]
+            else:
+                self.cas_ticks = 0
         if percent_of_max > 1:
             # Consider slowing down
             # if speed_data.current_speed > 200:  # Brake earlier at higher speeds
             #     brake_threshold_multiplier = 0.9
+
 
             if percent_of_max > 1 + (
                 brake_threshold_multiplier * true_percent_change_per_tick

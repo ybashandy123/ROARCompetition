@@ -8,6 +8,9 @@ def json_to_xlsx(json_path: str, xlsx_path: str = None, sheet_name: str = "debug
 
     - If entries are a dict keyed by frame/index, the key becomes 'id'.
     - If entries are a list, indices (1-based) become 'id'.
+    - Supports a 'section' field:
+        * If present per-record, it's written for that record.
+        * If present once at top-level, it's copied to every record.
     - 'loc': [x, y] is split into 'loc_x' and 'loc_y'.
     - All other fields are written as columns.
     """
@@ -19,29 +22,61 @@ def json_to_xlsx(json_path: str, xlsx_path: str = None, sheet_name: str = "debug
     with in_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Extract a global/top-level section if present (applies to all rows)
+    global_meta = {}
+    if isinstance(data, dict) and "section" in data and not isinstance(data.get("section"), dict):
+        global_meta["section"] = data["section"]
+
+    # Helper to make values Excel-friendly (numbers stay numbers; others -> JSON strings)
+    def normalize_cell_value(v):
+        if isinstance(v, (int, float)) or v is None or isinstance(v, str):
+            return v if v is not None else ""
+        # lists, dicts, tuples, etc. -> JSON string
+        try:
+            return json.dumps(v)
+        except Exception:
+            return str(v)
+
     # Normalize into a list of records
     records = []
     if isinstance(data, dict):
-        items = data.items()
+        # Treat only dict-valued items as records; skip scalar top-level meta like 'section'
+        items = [(k, v) for k, v in data.items() if isinstance(v, dict)]
+        # If there were no dict-valued items, fall back to iterating everything (original behavior)
+        if not items:
+            items = list(data.items())
     elif isinstance(data, list):
-        items = enumerate(data, start=1)
+        items = list(enumerate(data, start=1))
     else:
         raise ValueError("Unsupported JSON top-level type (expected dict or list).")
 
     for key, val in items:
         rec = {"id": str(key)}
+        # Carry global/top-level meta (e.g., section) onto each row
+        rec.update(global_meta)
+
         if isinstance(val, dict):
+            # Split loc if present
             loc = val.get("loc")
             if isinstance(loc, (list, tuple)) and len(loc) >= 2:
                 rec["loc_x"] = loc[0]
                 rec["loc_y"] = loc[1]
-            # Add the rest of the fields
+
+            # Add the rest of the fields (including per-record 'section' if present)
             for k, v in val.items():
-                if k != "loc":
-                    rec[k] = v
+                if k == "loc":
+                    continue
+                rec[k] = normalize_cell_value(v)
         else:
             # Not a dict; store under a generic column
-            rec["value"] = val
+            rec["value"] = normalize_cell_value(val)
+
+        # Normalize cell values for any leftover raw types
+        for k in list(rec.keys()):
+            if k in ("loc_x", "loc_y"):  # already numeric-friendly
+                continue
+            rec[k] = normalize_cell_value(rec[k])
+
         records.append(rec)
 
     # Collect all headers seen across records
@@ -49,8 +84,8 @@ def json_to_xlsx(json_path: str, xlsx_path: str = None, sheet_name: str = "debug
     for r in records:
         all_keys.update(r.keys())
 
-    # Prefer a stable, friendly header order
-    preferred = ["id", "loc_x", "loc_y", "throttle", "brake", "steer", "speed", "lap"]
+    # Prefer a stable, friendly header order (include 'section')
+    preferred = ["id", "section", "loc_x", "loc_y", "throttle", "brake", "steer", "speed", "lap"]
     remaining = [k for k in sorted(all_keys) if k not in preferred]
     headers = [k for k in preferred if k in all_keys] + remaining
 
@@ -73,7 +108,7 @@ def json_to_xlsx(json_path: str, xlsx_path: str = None, sheet_name: str = "debug
             if isinstance(val, (int, float)):
                 ws.write_number(row_idx, col, val, num_fmt)
             else:
-                ws.write(row_idx, col, val, general_fmt)
+                ws.write(row_idx, col, "" if val is None else val, general_fmt)
 
     # Light autofit
     for col in range(len(headers)):

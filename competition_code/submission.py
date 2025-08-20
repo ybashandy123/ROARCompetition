@@ -367,12 +367,15 @@ class RoarCompetitionSolution:
         current_speed_kmh = vehicle_velocity_norm * 3.6
 
         time_to_hit = 100
+        u = 0
         distance_to_hit = {}
-        if current_speed_kmh > 100:
-            distance_to_hit = distance_to_wall_from_exterior(vehicle_location, vehicle_rotation, vehicle_velocity, centerline_xy)
-        if (distance_to_hit.get("distance_exterior") or 100) < 30:
-            time_to_hit = distance_to_hit["distance_exterior"] / (vehicle_velocity_norm or 0.001)
-            print(f"Distance high enough, time to hit: {time_to_hit}")
+
+        if self.current_section == 5 or self.current_section == 3:
+            if current_speed_kmh > 100:
+                distance_to_hit = distance_to_wall_from_exterior(vehicle_location, vehicle_rotation, vehicle_velocity, centerline_xy)
+            if (distance_to_hit.get("distance_exterior") or 100) < 30:
+                time_to_hit = distance_to_hit["distance_exterior"] / (vehicle_velocity_norm or 0.001)
+                u = math.atan2(vehicle_velocity[1], vehicle_velocity[0])
         
         # Find the waypoint closest to the vehicle
         self.current_waypoint_idx = filter_waypoints(
@@ -397,7 +400,7 @@ class RoarCompetitionSolution:
 
         # Pure pursuit controller to steer the vehicle
         steer_control = self.lat_controller.run(
-            vehicle_location, vehicle_rotation, waypoint_to_follow
+            vehicle_location, vehicle_rotation, waypoint_to_follow, self.current_section, time_to_hit, u
         )
 
         # Custom controller to control the vehicle's speed
@@ -453,6 +456,7 @@ class RoarCompetitionSolution:
             debugData[self.num_ticks]["brake"] = round(float(control["brake"]), 3)
             debugData[self.num_ticks]["steer"] = round(float(control["steer"]), 10)
             debugData[self.num_ticks]["speed"] = round(current_speed_kmh, 3)
+            debugData[self.num_ticks]["section"] = self.current_section
             debugData[self.num_ticks]["lap"] = self.lapNum
                 
         await self.vehicle.apply_action(control)

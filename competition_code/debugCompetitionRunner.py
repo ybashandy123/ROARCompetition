@@ -257,7 +257,7 @@ async def evaluate_solution(
     rule = RoarCompetitionRule(waypoints * 3, vehicle, world)  # 3 laps
 
     # === setup live plot (track + car position) ===
-    plot_enabled = True  # tie plotting to the same flag
+    plot_enabled = False  # tie plotting to the same flag
     if plot_enabled:
         plt.ion()
         fig, ax = plt.subplots()
