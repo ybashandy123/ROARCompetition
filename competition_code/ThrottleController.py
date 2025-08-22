@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import time
 from collections import deque
 from SpeedData import SpeedData
 import roar_py_interface
@@ -28,6 +29,7 @@ class ThrottleController:
         self.previous_speed = 1.0
         self.brake_ticks = 0
         self.brake_amount = 1
+        self.speed_limit_ticks = 0
         self.brake_amount_list = {
             "0": 0.5034567891234,
             "1": 0.5543219876543,
@@ -49,12 +51,37 @@ class ThrottleController:
         print("done")
 
     def run(
-        self, waypoints, current_location, current_speed, current_section
+        self, waypoints, current_location, current_speed, current_section, CAS_Enabled, steer
     ) -> (float, float, int):
         self.tick_counter += 1
+        self.brake_amount = self.brake_amount_list[str(current_section)]
+
         throttle, brake = self.get_throttle_and_brake(
             current_location, current_speed, current_section, waypoints
         )
+
+        if current_section == 5:
+            if current_location[1] > -90:
+                if self.speed_limit_ticks == 0:
+                    if current_speed > 173:
+                        self.speed_limit_ticks = 3
+            else:
+                self.speed_limit_ticks = 0
+        
+        if self.speed_limit_ticks > 0:
+            #throttle = -1
+            #brake = 1
+            #print(f"speed limitting: {current_speed} at position ({current_location[0]:.2f}, {current_location[1]:.2f})")
+            self.speed_limit_ticks -= 1
+        
+        if CAS_Enabled:
+            if steer != 0:
+                throttle = 1
+                brake = 0
+            else:
+                throttle = 1
+                brake = 0
+        
         # gear = max(1, (int)(math.log(current_speed + 0.00001, 5)))
         gear = max(1, int(current_speed / 60))
         if throttle < 0:
@@ -69,7 +96,12 @@ class ThrottleController:
         if self.brake_ticks > 0 and brake > 0:
             self.brake_ticks -= 1
 
-        self.brake_amount = self.brake_amount_list[str(current_section)]
+        if CAS_Enabled:
+            print(f"[CAS] Throttle: {throttle}")
+            print(f"[CAS] Velocity: {current_speed}")
+            print(f"[CAS] Brake: {brake}")
+            print(f"[CAS] Position: {current_location[0]}, {current_location[1]}")
+            time.sleep(0.5)
 
         # throttle = 0.05 * (100 - current_speed)
         return throttle, brake, gear
@@ -452,7 +484,7 @@ class ThrottleController:
             mu = 2.1
 
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
-        target_speed += 0.972384729384724
+        target_speed += 1
 
         return max(
             20, min(target_speed, self.max_speed)

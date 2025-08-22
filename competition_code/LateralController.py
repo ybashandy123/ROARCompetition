@@ -5,9 +5,12 @@ import math
 def normalize_rad(rad: float):
     return rad % (2 * np.pi)
 
+BIAS = [0, 0]
+
+MANEUVERABLE_WAYPOINTS = {}
 
 class LatController:
-    def run(self, vehicle_location, vehicle_rotation, next_waypoint) -> float:
+    def run(self, vehicle_location, vehicle_rotation, waypointCB, next_waypoint, current_section, CAS_Enabled, swerve_dir) -> float:
         """
         Calculates the steering command using the pure pursuit algorithm.
 
@@ -38,5 +41,24 @@ class LatController:
         steering_command = 1.5 * math.atan2(
             2.0 * 4.7 * math.sin(alpha) / distance_to_waypoint, 1.0
         )
+
+        if CAS_Enabled:
+            angle_diff = np.abs(swerve_dir - vehicle_rotation[2]) * 2 * np.pi
+            print(f"Angle difference: {angle_diff}")
+            
+            if angle_diff > 1.5:
+                return float(0)
+            
+            if not BIAS[1]:
+                BIAS[0] = swerve_dir
+                if current_section != 5:
+                    BIAS[0] = -swerve_dir
+                BIAS[1] = True
+            
+            steering_command = BIAS[0]
+            print(f"SWERVING: {steering_command}")
+        elif BIAS[0] != 0:
+            BIAS[0] = 0
+            BIAS[1] = False
 
         return float(steering_command)

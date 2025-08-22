@@ -23,10 +23,278 @@ useDebug = True
 useDebugPrinting = False
 debugData = {}
 
+TTH_THRESHOLD = {
+    0: [0, 0, 0],
+    1: [0, 0, 0],
+    2: [0.03, 0.05, 0.08],
+    3: [0.01, 0.03, 0.03],
+    4: [0, 0, 0],
+    5: [0.1, 0.4, 0.4],
+    6: [0, 0, 0],
+    7: [0, 0, 0],
+    8: [0, 0, 0],
+    9: [0, 0, 0]
+}
+
 
 def dist_to_waypoint(location, waypoint: roar_py_interface.RoarPyWaypoint):
     return np.linalg.norm(location[:2] - waypoint.location[:2])
 
+
+def filter_waypoints(
+    location: np.ndarray,
+    current_idx: int,
+    waypoints: List[roar_py_interface.RoarPyWaypoint],
+) -> int:
+    for i in range(current_idx, len(waypoints) + current_idx):
+        if dist_to_waypoint(location, waypoints[i % len(waypoints)]) < 3:
+            return i % len(waypoints)
+    return current_idx
+
+
+def findClosestIndex(location, waypoints: List[roar_py_interface.RoarPyWaypoint]):
+    lowestDist = 100
+    closestInd = 0
+    for i in range(0, len(waypoints)):
+        dist = dist_to_waypoint(location, waypoints[i % len(waypoints)])
+        if dist < lowestDist:
+            lowestDist = dist
+            closestInd = i
+    return closestInd % len(waypoints)
+ 
+@atexit.register
+def saveDebugData():
+    if useDebug:
+        print("Saving debug data")
+        jsonData = json.dumps(debugData, indent=4)
+        with open(
+            f"{os.path.dirname(__file__)}\\debugData\\debugData.json", "w+"
+        ) as outfile:
+            outfile.write(jsonData)
+        print("Debug Data Saved")
+
+data = np.load(f"{os.path.dirname(__file__)}\\waypoints\\centeredWaypoints.npz")
+centerline_xy = roar_py_interface.RoarPyWaypoint.load_waypoint_list(data)
+
+import numpy as np
+
+CAR_LENGTH = 4.719 
+CAR_WIDTH  = 2.09 
+TRACK_HALF_WIDTH = 5.0 
+TRACK_CLOSED = True 
+EPS = 1e-9
+
+def _normalize(v):
+    n = np.linalg.norm(v)
+    return v / n if n > EPS else v
+
+def _rot90_ccw_batch(T):  # T: (N,2) -> (-y, x) per row
+    return np.stack([-T[:, 1], T[:, 0]], axis=1)
+
+def _cross2(a, b):
+    # 2D cross product scalar: ax*by - ay*bx
+    return a[0]*b[1] - a[1]*b[0]
+
+def _as_xy_points(centerline_like):
+    """
+    Accepts:
+      - list/seq of RoarPyWaypoint (with .location vector-like)
+      - Nx2 or Nx3 numpy array (we'll use first 2 cols)
+      - list of [x,y,(z)] points
+    Returns:
+      Nx2 float array
+    """
+    # If it's already a NumPy array of shape (N, >=2)
+    if isinstance(centerline_like, np.ndarray):
+        if centerline_like.ndim != 2 or centerline_like.shape[1] < 2:
+            raise TypeError("centerline array must be shape (N, >=2)")
+        return centerline_like[:, :2].astype(float)
+
+    # Otherwise treat as a sequence
+    seq = list(centerline_like)
+    if len(seq) == 0:
+        raise ValueError("Empty centerline")
+
+    first = seq[0]
+    # RoarPyWaypoint path
+    if hasattr(first, "location"):
+        out = np.empty((len(seq), 2), dtype=float)
+        for i, wp in enumerate(seq):
+            loc = np.asarray(wp.location, dtype=float).ravel()
+            if loc.size < 2:
+                raise TypeError("RoarPyWaypoint.location must have at least 2 components (x,y)")
+            out[i] = loc[:2]
+        return out
+
+    # Generic [x,y,(z)] points
+    try:
+        arr = np.asarray(seq, dtype=float)
+    except Exception as e:
+        raise TypeError("Unsupported centerline data type") from e
+
+    if arr.ndim == 1 and arr.size % 2 == 0:
+        arr = arr.reshape(-1, 2)
+    if arr.ndim != 2 or arr.shape[1] < 2:
+        raise TypeError("centerline must be convertible to shape (N, >=2)")
+    return arr[:, :2]
+
+def _as_xy(vec_like):
+    """Coerce 2D from 2D/3D vector-like or object with .x/.y or .location/.position."""
+    if hasattr(vec_like, "location"):
+        v = np.asarray(vec_like.location, dtype=float).ravel()
+        return v[:2]
+    if hasattr(vec_like, "position"):
+        v = np.asarray(vec_like.position, dtype=float).ravel()
+        return v[:2]
+    # objects with .x/.y
+    if hasattr(vec_like, "x") and hasattr(vec_like, "y"):
+        return np.array([float(vec_like.x), float(vec_like.y)], dtype=float)
+    # numpy/list
+    v = np.asarray(vec_like, dtype=float).ravel()
+    if v.size < 2:
+        raise TypeError("Vector must have at least 2 components (x,y)")
+    return v[:2]
+
+def _extract_yaw_rad(rotation_like):
+    """
+    Accept float (rad), object with .yaw (deg or rad), or a 3-vector [roll,pitch,yaw].
+    Heuristic: if |yaw| > ~1.5π, assume degrees and convert.
+    """
+    # direct float/int
+    if isinstance(rotation_like, (int, float, np.floating)):
+        yaw = float(rotation_like)
+    elif hasattr(rotation_like, "yaw"):
+        yaw = float(rotation_like.yaw)
+    else:
+        # try indexable [roll, pitch, yaw]
+        try:
+            yaw = float(rotation_like[2])
+        except Exception:
+            # last resort: 0
+            yaw = 0.0
+
+    if abs(yaw) > np.pi * 1.5:
+        yaw = np.deg2rad(yaw)
+    return yaw
+
+def build_track_edges(centerline_like):
+    """
+    Input can be ROAR Py waypoints (list) or an Nx2/Nx3 array.
+    Returns left_xy, right_xy as (N,2) arrays.
+    """
+    C = _as_xy_points(centerline_like)              # (N,2)
+    Np = len(C)
+    # tangents via central differences (wrap if closed)
+    tangents = np.zeros_like(C)
+    if TRACK_CLOSED:
+        C_prev = np.roll(C, 1, axis=0)
+        C_next = np.roll(C, -1, axis=0)
+    else:
+        C_prev = np.vstack([C[0], C[:-1]])
+        C_next = np.vstack([C[1:], C[-1]])
+    T = C_next - C_prev
+    # normalize row-wise
+    norms = np.linalg.norm(T, axis=1, keepdims=True)
+    norms = np.where(norms < EPS, 1.0, norms)
+    Tn = T / norms
+
+    normals_left = _rot90_ccw_batch(Tn)            # (-Ty, Tx)
+    left_xy  = C + TRACK_HALF_WIDTH * normals_left
+    right_xy = C - TRACK_HALF_WIDTH * normals_left
+    return left_xy, right_xy
+
+def raycast_polyline(origin, direction, polyline):
+    """
+    Ray: p(t) = origin + t * direction, t >= 0
+    Segment: q + s * v, s in [0,1]
+    Returns: (t_min, hit_point, seg_index) with np.inf if no hit
+    """
+    p = _as_xy(origin).astype(float)
+    u = _normalize(_as_xy(direction).astype(float))
+    P = _as_xy_points(polyline).astype(float)
+    M = len(P)
+
+    t_min = np.inf
+    hit = None
+    hit_idx = -1
+
+    max_i = M if TRACK_CLOSED else M - 1
+    for i in range(max_i):
+        q  = P[i]
+        q2 = P[(i + 1) % M] if TRACK_CLOSED else P[i + 1]
+        v = q2 - q
+        denom = _cross2(u, v)
+        if abs(denom) < EPS:
+            continue
+        w = q - p
+        t = _cross2(w, v) / denom
+        s = _cross2(w, u) / denom
+        if t >= 0.0 and 0.0 <= s <= 1.0:
+            if t < t_min:
+                t_min = t
+                hit = p + t * u
+                hit_idx = i
+    return t_min, hit, hit_idx
+
+def distance_to_wall_from_exterior(vehicle_location, vehicle_rotation, vehicle_velocity, centerline_like):
+    """
+    vehicle_location: 2D/3D vector-like or object with .x/.y or .location holding [x,y,(z)]
+    vehicle_rotation: yaw in radians, OR object with .yaw (deg or rad), OR [roll,pitch,yaw]
+    vehicle_velocity: 2D/3D vector-like (we use x,y). If near zero, falls back to heading.
+    centerline_like: list of RoarPyWaypoint OR Nx2/Nx3 array of center waypoints
+
+    Returns dict:
+      distance_exterior (float),
+      distance_center_to_hit (float),
+      which_wall ('left'|'right'|None),
+      hit_point (2,) or None,
+      ray_dir (2,)
+    """
+    left_xy, right_xy = build_track_edges(centerline_like)
+
+    pos_xy = _as_xy(vehicle_location)
+    vel_xy = _as_xy(vehicle_velocity)
+    yaw = _extract_yaw_rad(vehicle_rotation)
+
+    # Ray direction: prefer velocity if nonzero, else heading
+    u = _normalize(vel_xy) if np.linalg.norm(vel_xy) > EPS else np.array([np.cos(yaw), np.sin(yaw)], dtype=float)
+
+    # Vehicle body axes
+    f = np.array([np.cos(yaw), np.sin(yaw)], dtype=float)  # forward
+    r = np.array([ f[1], -f[0] ], dtype=float)             # right
+
+    # Car support distance along ray direction (center -> exterior skin)
+    a = 0.5 * CAR_LENGTH
+    b = 0.5 * CAR_WIDTH
+    support = a * abs(np.dot(u, f)) + b * abs(np.dot(u, r))
+
+    # Raycast to both walls
+    tL, hitL, _ = raycast_polyline(pos_xy, u, left_xy)
+    tR, hitR, _ = raycast_polyline(pos_xy, u, right_xy)
+
+    t_hit = min(tL, tR)
+    if np.isinf(t_hit):
+        return {
+            "distance_exterior": np.inf,
+            "distance_center_to_hit": np.inf,
+            "which_wall": None,
+            "hit_point": None,
+            "ray_dir": u,
+        }
+
+    which = 'left' if tL <= tR else 'right'
+    hit_point = hitL if which == 'left' else hitR
+
+    distance_center_to_hit = float(t_hit)
+    distance_exterior = max(0.0, distance_center_to_hit - support)
+
+    return {
+        "distance_exterior": float(distance_exterior),
+        "distance_center_to_hit": distance_center_to_hit,
+        "which_wall": which,
+        "hit_point": hit_point,
+        "ray_dir": u,
+    }
 
 def filter_waypoints(
     location: np.ndarray,
@@ -150,6 +418,18 @@ class RoarCompetitionSolution:
             vehicle_location, self.current_waypoint_idx, self.maneuverable_waypoints
         )
 
+        if self.current_section == 5:
+            if current_speed_kmh > 170:
+                if current_speed_kmh > 171:
+                    TTH_THRESHOLD[5][1] = 0.3
+                    TTH_THRESHOLD[5][2] = 0.3  
+                else:
+                    TTH_THRESHOLD[5][1] = 0.25
+                    TTH_THRESHOLD[5][2] = 0.25 
+            else:
+                TTH_THRESHOLD[5][1] = 0.2
+                TTH_THRESHOLD[5][2] = 0.2  
+
         # compute and print section timing
         for i, section_ind in enumerate(self.section_indeces):
             if (
@@ -166,9 +446,25 @@ class RoarCompetitionSolution:
         nextWaypointIndex = self.get_lookahead_index(current_speed_kmh)
         waypoint_to_follow = self.next_waypoint_smooth(current_speed_kmh)
 
+        time_to_hit = 100
+        u = 0
+        distance_to_hit = {}
+
+        if self.current_section == 5 or self.current_section == 3:
+            if current_speed_kmh > 100:
+                distance_to_hit = distance_to_wall_from_exterior(vehicle_location, vehicle_rotation, vehicle_velocity, centerline_xy)
+            if (distance_to_hit.get("distance_exterior") or 100) < 30:
+                time_to_hit = distance_to_hit["distance_exterior"] / (vehicle_velocity_norm or 0.001)
+                u = math.atan2(vehicle_velocity[1], vehicle_velocity[0])
+        
+        CAS_Enabled = (time_to_hit < TTH_THRESHOLD[self.current_section][self.lapNum - 1])
+
+        def vehicle_callback():
+            pass
+
         # Pure pursuit controller to steer the vehicle
         steer_control = self.lat_controller.run(
-            vehicle_location, vehicle_rotation, waypoint_to_follow
+            vehicle_location, vehicle_rotation, vehicle_callback, waypoint_to_follow, self.current_section, CAS_Enabled, u
         )
 
         # Custom controller to control the vehicle's speed
@@ -180,6 +476,8 @@ class RoarCompetitionSolution:
             vehicle_location,
             current_speed_kmh,
             self.current_section,
+            CAS_Enabled,
+            steer_control
         )
 
         steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)
