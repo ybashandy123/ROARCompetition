@@ -23,19 +23,10 @@ useDebug = True
 useDebugPrinting = False
 debugData = {}
 
-TTH_THRESHOLD = {
-    0: [0, 0, 0],
-    1: [0, 0, 0],
-    2: [0.03, 0.05, 0.08],
-    3: [0.01, 0.03, 0.03],
-    4: [0, 0, 0],
-    5: [0.1, 0.4, 0.4],
-    6: [0, 0, 0],
-    7: [0, 0, 0],
-    8: [0, 0, 0],
-    9: [0, 0, 0]
-}
-
+params = open("parameters.json", "r")
+paramsObject = json.loads(params.read())
+TTH_THRESHOLD = paramsObject["CAS"]
+params.close()
 
 def dist_to_waypoint(location, waypoint: roar_py_interface.RoarPyWaypoint):
     return np.linalg.norm(location[:2] - waypoint.location[:2])
@@ -421,14 +412,14 @@ class RoarCompetitionSolution:
         if self.current_section == 5:
             if current_speed_kmh > 170:
                 if current_speed_kmh > 171:
-                    TTH_THRESHOLD[5][1] = 0.3
-                    TTH_THRESHOLD[5][2] = 0.3  
+                    TTH_THRESHOLD["5"][1] = 0.3
+                    TTH_THRESHOLD["5"][2] = 0.3  
                 else:
-                    TTH_THRESHOLD[5][1] = 0.25
-                    TTH_THRESHOLD[5][2] = 0.25 
+                    TTH_THRESHOLD["5"][1] = 0.25
+                    TTH_THRESHOLD["5"][2] = 0.25 
             else:
-                TTH_THRESHOLD[5][1] = 0.2
-                TTH_THRESHOLD[5][2] = 0.2  
+                TTH_THRESHOLD["5"][1] = 0.2
+                TTH_THRESHOLD["5"][2] = 0.2  
 
         # compute and print section timing
         for i, section_ind in enumerate(self.section_indeces):
@@ -457,10 +448,18 @@ class RoarCompetitionSolution:
                 time_to_hit = distance_to_hit["distance_exterior"] / (vehicle_velocity_norm or 0.001)
                 u = math.atan2(vehicle_velocity[1], vehicle_velocity[0])
         
-        CAS_Enabled = (time_to_hit < TTH_THRESHOLD[self.current_section][self.lapNum - 1])
+        CAS_Enabled = (time_to_hit < TTH_THRESHOLD[str(self.current_section)][self.lapNum - 1])
 
         def vehicle_callback():
-            pass
+            """
+            Collect the next 4 consecutive waypoints starting from the current index.
+            """
+            N = len(self.maneuverable_waypoints)
+            base = self.current_waypoint_idx
+
+            idxs = [(base + i) % N for i in range(1, 5)]
+            return [self.maneuverable_waypoints[i].location for i in idxs]
+
 
         # Pure pursuit controller to steer the vehicle
         steer_control = self.lat_controller.run(
@@ -477,7 +476,8 @@ class RoarCompetitionSolution:
             current_speed_kmh,
             self.current_section,
             CAS_Enabled,
-            steer_control
+            steer_control,
+            self.lapNum-1
         )
 
         steerMultiplier = round((current_speed_kmh + 0.001) / 120, 3)

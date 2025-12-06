@@ -1,6 +1,6 @@
 import numpy as np
 import math
-import time
+import json
 from collections import deque
 from SpeedData import SpeedData
 import roar_py_interface
@@ -30,19 +30,13 @@ class ThrottleController:
         self.brake_ticks = 0
         self.brake_amount = 1
         self.speed_limit_ticks = 0
-        self.brake_amount_list = {
-            "0": 0.5034567891234,
-            "1": 0.5543219876543,
-            "2": 0.6465432198765,
-            "3": 0.6532109876543,
-            "4": 0.7565432198765,
-            "5": 0.9954321987654,
-            "6": 0.4967891234567,
-            "7": 0.5045678912345,
-            "8": 0.4998765432198,
-            "9": 0.9912345678901
-        }
 
+        params = open("parameters.json", "r")
+        paramsObject = json.loads(params.read())
+        self.brake_amount_list = paramsObject["Brakes"]
+        self.muList = paramsObject["mu"]
+        self.plusVelocity = paramsObject["Velocity+"]
+        params.close()
         # for testing how fast the car stops
         self.brake_test_counter = 0
         self.brake_test_in_progress = False
@@ -51,13 +45,13 @@ class ThrottleController:
         print("done")
 
     def run(
-        self, waypoints, current_location, current_speed, current_section, CAS_Enabled, steer
+        self, waypoints, current_location, current_speed, current_section, CAS_Enabled, steer, current_lap
     ) -> (float, float, int):
         self.tick_counter += 1
         self.brake_amount = self.brake_amount_list[str(current_section)]
 
         throttle, brake = self.get_throttle_and_brake(
-            current_location, current_speed, current_section, waypoints
+            current_location, current_speed, current_section, waypoints, current_lap
         )
 
         if current_section == 5:
@@ -101,13 +95,12 @@ class ThrottleController:
             print(f"[CAS] Velocity: {current_speed}")
             print(f"[CAS] Brake: {brake}")
             print(f"[CAS] Position: {current_location[0]}, {current_location[1]}")
-            time.sleep(0.5)
 
         # throttle = 0.05 * (100 - current_speed)
         return throttle, brake, gear
 
     def get_throttle_and_brake(
-        self, current_location, current_speed, current_section, waypoints
+        self, current_location, current_speed, current_section, waypoints, current_lap
     ):
         """
         Returns throttle and brake values based off the car's current location and the radius of the approaching turn
@@ -118,9 +111,9 @@ class ThrottleController:
         r2 = self.get_radius(nextWaypoint[self.mid_index : self.mid_index + 3])
         r3 = self.get_radius(nextWaypoint[self.far_index : self.far_index + 3])
 
-        target_speed1 = self.get_target_speed(r1, current_section)
-        target_speed2 = self.get_target_speed(r2, current_section)
-        target_speed3 = self.get_target_speed(r3, current_section)
+        target_speed1 = self.get_target_speed(r1, current_section, current_lap)
+        target_speed2 = self.get_target_speed(r2, current_section, current_lap)
+        target_speed3 = self.get_target_speed(r3, current_section, current_lap)
 
         close_distance = self.target_distance[self.close_index] + 3
         mid_distance = self.target_distance[self.mid_index]
@@ -146,7 +139,7 @@ class ThrottleController:
                         nextWaypoint[self.mid_index + 4],
                     ]
                 )
-                target_speed4 = self.get_target_speed(r4, current_section)
+                target_speed4 = self.get_target_speed(r4, current_section, current_lap)
                 speed_data.append(
                     self.speed_for_turn(close_distance, target_speed4, current_speed)
                 )
@@ -158,7 +151,7 @@ class ThrottleController:
                     nextWaypoint[self.close_index + 6],
                 ]
             )
-            target_speed5 = self.get_target_speed(r5, current_section)
+            target_speed5 = self.get_target_speed(r5, current_section, current_lap)
             speed_data.append(
                 self.speed_for_turn(close_distance, target_speed5, current_speed)
             )
@@ -456,7 +449,7 @@ class ThrottleController:
 
         return radius
 
-    def get_target_speed(self, radius: float, current_section: int):
+    def get_target_speed(self, radius: float, current_section: int, current_lap: int):
         """Returns a target speed based on the radius of the turn and the section it is in
 
         Args:
@@ -467,24 +460,13 @@ class ThrottleController:
             float: The maximum speed the car can go around the corner at
         """
 
-        mu = 2.75
+        mu = self.muList[str(current_section)][current_lap]
 
         if radius >= self.max_radius:
             return self.max_speed
 
-        if current_section == 2:
-            mu = 3.35
-        if current_section == 3:
-            mu = 3.3
-        if current_section == 4:
-            mu = 2.85
-        if current_section == 6:
-            mu = 3.3
-        if current_section == 9:
-            mu = 2.1
-
         target_speed = math.sqrt(mu * 9.81 * radius) * 3.6
-        target_speed += 1
+        target_speed += self.plusVelocity[str(current_section)][current_lap]
 
         return max(
             20, min(target_speed, self.max_speed)
